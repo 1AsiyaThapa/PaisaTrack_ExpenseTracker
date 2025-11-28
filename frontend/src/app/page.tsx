@@ -1,5 +1,7 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/Button';
 // No generic icons - we'll create unique visual elements
 
 // Constants - keeping data separate from component
@@ -67,11 +69,21 @@ function Logo() {
 }
 
 function Header() {
+  const router = useRouter();
+  
   return (
     <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
       <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 py-4">
         <div className="flex justify-between items-center">
           <Logo />
+          <div className="flex space-x-4">
+            <Button variant="ghost" onClick={() => router.push('/login')}>
+              Sign In
+            </Button>
+            <Button onClick={() => router.push('/signup')}>
+              Get Started
+            </Button>
+          </div>
         </div>
       </div>
     </header>
@@ -79,6 +91,8 @@ function Header() {
 }
 
 function HeroSection() {
+  const router = useRouter();
+  
   return (
     <section className="max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 py-16">
       <div className="max-w-4xl mx-auto">
@@ -92,6 +106,15 @@ function HeroSection() {
           <p className="text-sm text-orange-600 mt-2 font-medium">
             Made in Nepal 🇳🇵 • नेपालमा बनेको
           </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
+          <Button onClick={() => router.push('/signup')} className="px-6 py-3">
+            Get Started Free
+          </Button>
+          <Button variant="outline" onClick={() => router.push('/login')} className="px-6 py-3">
+            Sign In
+          </Button>
         </div>
 
         <ExpenseDemo />
@@ -266,6 +289,8 @@ function TestimonialsSection() {
 }
 
 function CTASection() {
+  const router = useRouter();
+  
   return (
     <section className="max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 py-16">
       <div className="max-w-2xl mx-auto text-center">
@@ -275,6 +300,9 @@ function CTASection() {
         <p className="text-gray-600 mb-6">
           Join thousands of people who are already saving more money with PaisaTrack.
         </p>
+        <Button onClick={() => router.push('/signup')} className="px-8 py-3">
+          Get Started Free
+        </Button>
         <p className="text-sm text-gray-500 mt-4">
           No credit card required
         </p>
