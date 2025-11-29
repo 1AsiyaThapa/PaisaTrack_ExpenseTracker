@@ -1,4 +1,21 @@
+#frontend
 frontend/node_modules
-backend/.env
 frontend/.env
+frontend/.next/
+
+#Backend
+backend/.env
 backend/.venv
+backend/__pycache__/
+backend/*.pyc
+
+
+# Common
+.env
+*.env
+*.log
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
