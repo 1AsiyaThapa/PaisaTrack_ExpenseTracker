@@ -124,6 +124,28 @@ async def signup_with_email(signup_data: SignupRequest, response: Response, db: 
     return token_data
 
 
+@router.post("/login", response_model=TokenResponse)
+async def login_with_email(login_data: LoginRequest, response: Response, db: Session = Depends(get_db)):
+    """Login with email and password"""
+    token_data = auth_service.login_with_email(db, login_data)
+
+    # Set cookie with appropriate expiration
+    if login_data.remember_me:
+        cookie_max_age = 30 * 24 * 60 * 60  # 30 days in seconds
+    else:
+        cookie_max_age = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
+    response.set_cookie(
+        key="auth_token",
+        value=token_data.access_token,
+        max_age=cookie_max_age,
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax",
+    )
+    return token_data
+
+
 @router.post("/logout")
 async def logout(response: Response):
     """Logout endpoint (clear cookie)"""

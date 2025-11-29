@@ -62,6 +62,13 @@ class SignupRequest(UserBase):
     password: str
 
 
+class LoginRequest(BaseModel):
+    """Schema for email/password login"""
+    email: str
+    password: str
+    remember_me: bool = False
+
+
 class UserResponse(UserBase):
     """Schema for user response"""
     id: str

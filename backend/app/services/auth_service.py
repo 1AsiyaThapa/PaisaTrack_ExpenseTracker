@@ -26,9 +26,49 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 
+# ============================================================
+# SECURITY HELPERS (JWT & Password)
+# ============================================================
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create JWT access token"""
+    to_encode = data.copy()
+
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+def verify_token(token: str) -> dict:
+    """Verify JWT token and return payload"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+            )
+        return payload
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+        )
+
+
 def hash_password(password: str) -> str:
     """Hash password using SHA256 + secret key"""
     return hashlib.sha256(f"{password}{SECRET_KEY}".encode()).hexdigest()
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify password against hash"""
+    return hash_password(password) == hashed
 
 
 # ============================================================
@@ -105,6 +145,39 @@ def signup_with_email(db: Session, signup_data: SignupRequest) -> TokenResponse:
     access_token = create_access_token(
         data={"sub": user.id},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=user_service.get_user_response(user),
+    )
+
+
+def login_with_email(db: Session, login_data: LoginRequest) -> TokenResponse:
+    """Login user with email/password"""
+    user = user_service.get_user_by_email(db, login_data.email)
+
+    if not user or not user.password_hash:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    if not verify_password(login_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    if login_data.remember_me:
+        expires_delta = timedelta(days=30)
+    else:
+        expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    access_token = create_access_token(
+        data={"sub": user.id},
+        expires_delta=expires_delta,
     )
 
     return TokenResponse(
