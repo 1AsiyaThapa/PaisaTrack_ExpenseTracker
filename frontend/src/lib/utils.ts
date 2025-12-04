@@ -19,8 +19,23 @@ export function validateEmail(email: string): string | null {
 
 export function validatePassword(password: string): string | null {
   if (!password) return 'Password is required';
-  if (password.length < 8) return 'Password must be at least 8 characters long';
+  if (password.length < 8) return 'Password must be at least 8 characters';
+  if (!/\d/.test(password)) return 'Password must contain at least one number';
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) return 'Password must contain at least one symbol';
   return null;
+}
+
+// Individual password requirement checks for real-time UI feedback
+export function checkPasswordRequirements(password: string): {
+  hasMinLength: boolean;
+  hasNumber: boolean;
+  hasSymbol: boolean;
+} {
+  return {
+    hasMinLength: password.length >= 8,
+    hasNumber: /\d/.test(password),
+    hasSymbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password),
+  };
 }
 
 export function validateName(name: string): string | null {

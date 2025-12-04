@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { SearchParamsWrapper } from '../../components/common/SearchParamsWrapper';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { Mail, Lock, User, ArrowRight, AlertCircle } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, AlertCircle, Check, X } from 'lucide-react';
 import { AuthLayout } from '../../components/layout/AuthLayout';
 import { FormInput } from '../../components/forms/FormInput';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -13,7 +13,7 @@ import { GoogleOAuthButton } from '../../components/auth/GoogleOAuthButton';
 import { PageTransition } from '../../components/common/PageTransition';
 import { useForm } from '../../hooks/useForm';
 import { useAuth } from '../../contexts/AuthContext';
-import { validateEmail, validatePassword, validateName } from '../../lib/utils';
+import { validateEmail, validatePassword, validateName, checkPasswordRequirements } from '../../lib/utils';
 
 // Component to handle search params without causing render issues
 function SignupContent({ searchParams, onAuthError }: { 
@@ -198,6 +198,30 @@ export default function Signup() {
                         icon={Lock}
                         disabled={loading}
                       />
+                      {/* Password Requirements */}
+                      {values.password && (
+                        <div className="mt-2 space-y-1">
+                          {(() => {
+                            const requirements = checkPasswordRequirements(values.password);
+                            return (
+                              <>
+                                <div className={`flex items-center gap-2 text-xs ${requirements.hasMinLength ? 'text-green-600' : 'text-red-500'}`}>
+                                  {requirements.hasMinLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                                  At least 8 characters
+                                </div>
+                                <div className={`flex items-center gap-2 text-xs ${requirements.hasNumber ? 'text-green-600' : 'text-red-500'}`}>
+                                  {requirements.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                                  At least one number
+                                </div>
+                                <div className={`flex items-center gap-2 text-xs ${requirements.hasSymbol ? 'text-green-600' : 'text-red-500'}`}>
+                                  {requirements.hasSymbol ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                                  At least one symbol (!@#$%^&* etc.)
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
 
                     {/* Confirm Password Field */}
