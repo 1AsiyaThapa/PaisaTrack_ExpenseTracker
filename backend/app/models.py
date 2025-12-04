@@ -1,10 +1,11 @@
-from sqlalchemy import create_engine, Column, String, Boolean, DateTime
+from sqlalchemy import create_engine, Column, String, Boolean, DateTime, Numeric, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.sql import func
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Literal
 from datetime import datetime
+from decimal import Decimal
 import os
 import uuid
 from dotenv import load_dotenv
@@ -45,6 +46,25 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationship to transactions
+    transactions = relationship("Transaction", back_populates="user")
+
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    amount = Column(Numeric(12, 2), nullable=False)  # Up to 12 digits, 2 decimal places
+    type = Column(String(20), nullable=False)  # "income" or "expense"
+    category = Column(String(100), nullable=False)  # e.g., "food", "salary"
+    note = Column(String(500), nullable=True)  # Optional description
+    date = Column(DateTime(timezone=True), nullable=False)  # When transaction happened
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationship to user
+    user = relationship("User", back_populates="transactions")
 
 
 # ============================================================
@@ -87,4 +107,30 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str
     user: UserResponse
+
+
+# ============================================================
+# 4. TRANSACTION SCHEMAS
+# ============================================================
+class TransactionCreate(BaseModel):
+    """Schema for creating a new transaction"""
+    amount: Decimal
+    type: Literal["income", "expense"]
+    category: str
+    note: Optional[str] = None
+    date: datetime
+
+
+class TransactionResponse(BaseModel):
+    """Schema for transaction response"""
+    id: str
+    amount: Decimal
+    type: str
+    category: str
+    note: Optional[str] = None
+    date: datetime
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
