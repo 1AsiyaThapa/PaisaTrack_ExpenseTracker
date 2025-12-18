@@ -33,11 +33,11 @@ export interface AuthResponse {
 export interface Transaction {
   id: string;
   amount: number;
-  description: string;
-  category: string;
   type: 'income' | 'expense';
+  category: string;
+  note?: string;
   date: string;
-  userId: string;
+  created_at: string;
 }
 
 export interface Budget {
