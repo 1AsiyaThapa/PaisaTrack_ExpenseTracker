@@ -156,28 +156,37 @@ export const transactionService = {
    * Get all transactions for the current user
    * Backend endpoint: GET /transactions
    */
-  async getTransactions(): Promise<Transaction[]> {
-    return apiRequest<Transaction[]>('/transactions');
+  async getTransactions(type?: 'income' | 'expense'): Promise<Transaction[]> {
+    const url = type ? `/transactions?type=${type}` : '/transactions';
+    return apiRequest<Transaction[]>(url);
+  },
+
+  /**
+   * Get dashboard statistics
+   * Backend endpoint: GET /transactions/stats
+   */
+  async getStats(): Promise<{
+    total_income: number;
+    total_expenses: number;
+    balance: number;
+    recent_transactions: Transaction[];
+  }> {
+    return apiRequest('/transactions/stats');
   },
 
   /**
    * Create a new transaction
    * Backend endpoint: POST /transactions
    */
-  async createTransaction(transaction: Omit<Transaction, 'id'>): Promise<Transaction> {
+  async createTransaction(transaction: {
+    amount: number;
+    type: 'income' | 'expense';
+    category: string;
+    note?: string;
+    date: string;
+  }): Promise<Transaction> {
     return apiRequest<Transaction>('/transactions', {
       method: 'POST',
-      body: JSON.stringify(transaction),
-    });
-  },
-
-  /**
-   * Update an existing transaction
-   * Backend endpoint: PUT /transactions/:id
-   */
-  async updateTransaction(id: string, transaction: Partial<Transaction>): Promise<Transaction> {
-    return apiRequest<Transaction>(`/transactions/${id}`, {
-      method: 'PUT',
       body: JSON.stringify(transaction),
     });
   },
