@@ -42,8 +42,6 @@ class User(Base):
     google_id = Column(String(255), unique=True, index=True, nullable=True)
     password_hash = Column(String(255), nullable=True)
     picture = Column(String(512), nullable=True)  # URLs can be long
-    role = Column(String(50), default="user", nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
