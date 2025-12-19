@@ -4,6 +4,8 @@ Transaction service functions for PaisaTrack
 
 from typing import Optional, List
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+from decimal import Decimal
 
 from app.models import Transaction, TransactionCreate, TransactionResponse
 
@@ -27,9 +29,12 @@ def create_transaction(db: Session, user_id: str, data: TransactionCreate) -> Tr
     return transaction
 
 
-def get_user_transactions(db: Session, user_id: str) -> List[Transaction]:
-    """Get all transactions for a specific user"""
-    return db.query(Transaction).filter(Transaction.user_id == user_id).order_by(Transaction.date.desc()).all()
+def get_user_transactions(db: Session, user_id: str, type: Optional[str] = None) -> List[Transaction]:
+    """Get all transactions for a specific user, optionally filtered by type"""
+    query = db.query(Transaction).filter(Transaction.user_id == user_id)
+    if type:
+        query = query.filter(Transaction.type == type)
+    return query.order_by(Transaction.date.desc()).all()
 
 
 def get_transaction_by_id(db: Session, transaction_id: str) -> Optional[Transaction]:
@@ -58,4 +63,34 @@ def get_transaction_response(transaction: Transaction) -> TransactionResponse:
         date=transaction.date,
         created_at=transaction.created_at,
     )
+
+
+def get_user_stats(db: Session, user_id: str) -> dict:
+    """Get dashboard statistics for a user"""
+    # Total income
+    total_income = db.query(func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user_id,
+        Transaction.type == "income"
+    ).scalar() or Decimal("0")
+    
+    # Total expenses
+    total_expenses = db.query(func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user_id,
+        Transaction.type == "expense"
+    ).scalar() or Decimal("0")
+    
+    # Balance
+    balance = total_income - total_expenses
+    
+    # Recent transactions (last 5)
+    recent = db.query(Transaction).filter(
+        Transaction.user_id == user_id
+    ).order_by(Transaction.date.desc()).limit(5).all()
+    
+    return {
+        "total_income": float(total_income),
+        "total_expenses": float(total_expenses),
+        "balance": float(balance),
+        "recent_transactions": [get_transaction_response(t) for t in recent]
+    }
 

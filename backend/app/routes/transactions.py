@@ -2,8 +2,8 @@
 Transaction routes for PaisaTrack
 """
 
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.orm import Session
 
 from app.models import get_db, Transaction, TransactionCreate, TransactionResponse
@@ -44,11 +44,12 @@ async def create_transaction(
 async def get_transactions(
     request: Request,
     db: Session = Depends(get_db),
+    type: Optional[str] = Query(None, description="Filter by transaction type: 'income' or 'expense'"),
 ):
-    """Get all transactions for the authenticated user"""
+    """Get all transactions for the authenticated user, optionally filtered by type"""
     user_id = get_current_user_id(request)
     
-    transactions = transaction_service.get_user_transactions(db, user_id)
+    transactions = transaction_service.get_user_transactions(db, user_id, type)
     return [transaction_service.get_transaction_response(t) for t in transactions]
 
 
@@ -77,3 +78,13 @@ async def delete_transaction(
     
     transaction_service.delete_transaction(db, transaction_id)
     return None
+
+
+@router.get("/stats")
+async def get_dashboard_stats(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Get dashboard statistics for the authenticated user"""
+    user_id = get_current_user_id(request)
+    return transaction_service.get_user_stats(db, user_id)
