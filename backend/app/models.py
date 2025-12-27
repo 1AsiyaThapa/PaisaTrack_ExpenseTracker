@@ -97,7 +97,7 @@ class UserResponse(UserBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True  # Important for ORM mode
+        from_attributes = True
 
 
 class TokenResponse(BaseModel):
@@ -131,4 +131,54 @@ class TransactionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ============================================================
+# 5. CATEGORY MODELS & SCHEMAS
+# ============================================================
+class Category(Base):
+    __tablename__ = "categories"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    type = Column(String(20), nullable=False)  # "income" or "expense"
+    icon = Column(String(50), nullable=False)  # Icon name from Lucide
+    color = Column(String(20), nullable=True)  # Hex code
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationship to user
+    user = relationship("User", back_populates="categories")
+
+
+User.categories = relationship("Category", back_populates="user")
+
+
+class CategoryCreate(BaseModel):
+    """Schema for creating a category"""
+    name: str
+    type: Literal["income", "expense"]
+    icon: str
+    color: Optional[str] = None
+
+
+class CategoryResponse(BaseModel):
+    """Schema for category response"""
+    id: str
+    name: str
+    type: str
+    icon: str
+    color: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserUpdate(BaseModel):
+    """Schema for updating user profile"""
+    name: Optional[str] = None
+    password: Optional[str] = None
+    new_password: Optional[str] = None
+
 

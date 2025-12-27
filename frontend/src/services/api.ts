@@ -15,7 +15,7 @@
  * - Authentication: Uses cookies for session management
  */
 
-import { Transaction, User, Budget, RecurringTransaction } from '../types';
+import { Transaction, User, Budget, RecurringTransaction, Category, CategoryCreate } from '../types';
 
 // Configuration
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'; // Backend URL
@@ -27,7 +27,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
  * Uses HTTP-only cookies for authentication (no manual token handling needed)
  */
 async function apiRequest<T>(
-  endpoint: string, 
+  endpoint: string,
   options?: RequestInit
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
@@ -268,20 +268,77 @@ export const recurringTransactionService = {
 export const userService = {
   /**
    * Get user profile
-   * Backend endpoint: GET /user/profile
+   * Backend endpoint: GET /users/me
    */
   async getProfile(): Promise<User> {
-    return apiRequest<User>('/user/profile');
+    return apiRequest<User>('/users/me');
   },
 
   /**
    * Update user profile
-   * Backend endpoint: PUT /user/profile
+   * Backend endpoint: PUT /users/me
    */
-  async updateProfile(userData: Partial<User>): Promise<User> {
-    return apiRequest<User>('/user/profile', {
+  async updateProfile(userData: { name?: string; password?: string; new_password?: string }): Promise<User> {
+    return apiRequest<User>('/users/me', {
       method: 'PUT',
       body: JSON.stringify(userData),
+    });
+  },
+};
+
+// =============================================================================
+// CATEGORY SERVICES
+// =============================================================================
+
+export const categoryService = {
+  /**
+   * Get all categories
+   * Backend endpoint: GET /categories
+   */
+  async getCategories(type?: 'income' | 'expense'): Promise<Category[]> {
+    const url = type ? `/categories?type=${type}` : '/categories';
+    return apiRequest<Category[]>(url);
+  },
+
+  /**
+   * Create a new category
+   * Backend endpoint: POST /categories
+   */
+  async createCategory(category: {
+    name: string;
+    type: 'income' | 'expense';
+    icon: string;
+    color?: string;
+  }): Promise<Category> {
+    return apiRequest<Category>('/categories', {
+      method: 'POST',
+      body: JSON.stringify(category),
+    });
+  },
+
+  /**
+   * Update a category
+   * Backend endpoint: PUT /categories/:id
+   */
+  async updateCategory(id: string, category: {
+    name: string;
+    type: 'income' | 'expense';
+    icon: string;
+    color?: string;
+  }): Promise<Category> {
+    return apiRequest<Category>(`/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(category),
+    });
+  },
+
+  /**
+   * Delete a category
+   * Backend endpoint: DELETE /categories/:id
+   */
+  async deleteCategory(id: string): Promise<void> {
+    return apiRequest<void>(`/categories/${id}`, {
+      method: 'DELETE',
     });
   },
 };

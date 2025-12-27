@@ -59,3 +59,25 @@ export interface RecurringTransaction {
   isActive: boolean;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+  icon: string;
+  color?: string;
+  created_at: string;
+}
+
+export interface CategoryCreate {
+  name: string;
+  type: 'income' | 'expense';
+  icon: string;
+  color?: string;
+}
+
+export interface UserUpdate {
+  name?: string;
+  password?: string;
+  new_password?: string;
+}
+
