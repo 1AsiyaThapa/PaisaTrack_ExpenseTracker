@@ -4,7 +4,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.models import Base, engine
-from app.routes import auth, users, transactions, budgets
+from app.routes import auth, users, transactions, budgets, categories
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -26,6 +26,7 @@ app.include_router(auth.router, prefix="/auth")
 app.include_router(users.router, prefix="/users")
 app.include_router(transactions.router, prefix="/transactions")
 app.include_router(budgets.router, prefix="/budgets")
+app.include_router(categories.router, prefix="/categories")
 
 
 @app.get("/")
