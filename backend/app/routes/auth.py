@@ -1,17 +1,13 @@
-"""
-Authentication routes for PaisaTrack
-"""
-
 import os
-from fastapi import APIRouter, Depends, Response, Request
+from fastapi import APIRouter, Depends, Response, Request, HTTPException, status
 from fastapi.responses import RedirectResponse
 from urllib.parse import urlencode
 import httpx
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from app.models import get_db, TokenResponse, LoginRequest, SignupRequest
-from app.services import auth_service, user_service
+from app.models import get_db, TokenResponse, LoginRequest, SignupRequest, OTPRequest, OTPVerifyRequest
+from app.services import auth_service, user_service, otp_service, email_service
 
 # Load config from .env
 load_dotenv()
@@ -26,7 +22,6 @@ router = APIRouter()
 
 @router.get("/google")
 async def google_login():
-    """Initiate Google OAuth login"""
     google_auth_url = "https://accounts.google.com/o/oauth2/auth"
     params = {
         "client_id": GOOGLE_CLIENT_ID,
@@ -45,7 +40,6 @@ async def google_login():
 async def google_callback(code: str, db: Session = Depends(get_db)):
     """Handle Google OAuth callback"""
     try:
-        # Exchange code for tokens
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 "https://oauth2.googleapis.com/token",
@@ -89,7 +83,7 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
                 value=token_data.access_token,
                 max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
                 httponly=True,
-                secure=False,  # Set to True in production with HTTPS
+                secure=False,
                 samesite="lax",
             )
             return response
@@ -107,10 +101,52 @@ async def google_token_auth(google_token: str, db: Session = Depends(get_db)):
     return auth_service.authenticate_with_google(db, user_info)
 
 
+@router.post("/request-otp")
+async def request_otp(otp_request: OTPRequest, db: Session = Depends(get_db)):
+    """Request OTP for email verification before signup"""
+    # Check if user already exists
+    existing_user = user_service.get_user_by_email(db, otp_request.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User with this email already exists",
+        )
+    
+    # Generate and store OTP
+    otp_code = otp_service.create_otp(db, otp_request.email)
+    
+    # Send OTP via email
+    email_sent = email_service.send_otp_email(
+        to_email=otp_request.email,
+        otp_code=otp_code,
+        name=otp_request.name
+    )
+    
+    if not email_sent:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send OTP email. Please try again.",
+        )
+    
+    return {"message": "OTP sent to your email", "email": otp_request.email}
+
+
 @router.post("/signup", response_model=TokenResponse)
-async def signup_with_email(signup_data: SignupRequest, response: Response, db: Session = Depends(get_db)):
-    """Sign up with email and password"""
-    token_data = auth_service.signup_with_email(db, signup_data)
+async def signup_with_email(signup_data: OTPVerifyRequest, response: Response, db: Session = Depends(get_db)):
+    """Sign up with email and password after OTP verification"""
+    # Verify OTP first
+    otp_service.verify_otp(db, signup_data.email, signup_data.otp_code)
+    
+    # Create signup request object
+    from app.models import SignupRequest
+    signup_request = SignupRequest(
+        email=signup_data.email,
+        name=signup_data.name,
+        password=signup_data.password
+    )
+    
+    # Create user account
+    token_data = auth_service.signup_with_email(db, signup_request)
 
     # Set cookie
     response.set_cookie(
@@ -118,7 +154,7 @@ async def signup_with_email(signup_data: SignupRequest, response: Response, db: 
         value=token_data.access_token,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
+        secure=False,
         samesite="lax",
     )
     return token_data
@@ -140,7 +176,7 @@ async def login_with_email(login_data: LoginRequest, response: Response, db: Ses
         value=token_data.access_token,
         max_age=cookie_max_age,
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
+        secure=False,
         samesite="lax",
     )
     return token_data

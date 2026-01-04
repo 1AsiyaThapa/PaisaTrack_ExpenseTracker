@@ -1,7 +1,3 @@
-"""
-User routes for PaisaTrack
-"""
-
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
@@ -12,10 +8,6 @@ router = APIRouter()
 
 
 def get_current_user_id(request: Request) -> str:
-    """
-    Simple helper to get current user ID from JWT token in cookie.
-    This replaces the complex Dependency Injection approach.
-    """
     token = request.cookies.get("auth_token")
     if not token:
         raise HTTPException(
@@ -54,20 +46,17 @@ async def update_current_user(user_update: UserUpdate, request: Request, db: Ses
             detail="User not found"
         )
 
-    # Update name
     if user_update.name:
         user.name = user_update.name
         
-    # Update password if provided
     if user_update.password and user_update.new_password:
-        # Verify old password
         if not auth_service.verify_password(user_update.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Incorrect current password"
             )
         # Set new password
-        user.password_hash = auth_service.get_password_hash(user_update.new_password)
+        user.password_hash = auth_service.hash_password(user_update.new_password)
         
     db.commit()
     db.refresh(user)
