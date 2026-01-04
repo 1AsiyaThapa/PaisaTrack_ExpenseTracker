@@ -4,9 +4,7 @@ from sqlalchemy.orm import Session
 from app.models import User, UserResponse
 
 
-# ============================================================
 # USER SERVICE FUNCTIONS
-# ============================================================
 def get_user_by_id(db: Session, user_id: str) -> Optional[User]:
     """Get user by ID"""
     return db.query(User).filter(User.id == user_id).first()

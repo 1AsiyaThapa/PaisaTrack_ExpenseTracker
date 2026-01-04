@@ -10,9 +10,6 @@ import os
 import uuid
 from dotenv import load_dotenv
 
-# ============================================================
-# 1. DATABASE SETUP & CONFIG (MySQL)
-# ============================================================
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -30,9 +27,7 @@ def get_db():
         db.close()
 
 
-# ============================================================
-# 2. DATABASE TABLES (SQLAlchemy Models)
-# ============================================================
+# DATABASE TABLES (SQLAlchemy Models)
 class User(Base):
     __tablename__ = "users"
 
@@ -41,7 +36,7 @@ class User(Base):
     name = Column(String(255), nullable=False)
     google_id = Column(String(255), unique=True, index=True, nullable=True)
     password_hash = Column(String(255), nullable=True)
-    picture = Column(String(512), nullable=True)  # URLs can be long
+    picture = Column(String(512), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -54,20 +49,18 @@ class Transaction(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    amount = Column(Numeric(12, 2), nullable=False)  # Up to 12 digits, 2 decimal places
-    type = Column(String(20), nullable=False)  # "income" or "expense"
-    category = Column(String(100), nullable=False)  # e.g., "food", "salary"
-    note = Column(String(500), nullable=True)  # Optional description
-    date = Column(DateTime(timezone=True), nullable=False)  # When transaction happened
+    amount = Column(Numeric(12, 2), nullable=False)
+    type = Column(String(20), nullable=False)
+    category = Column(String(100), nullable=False)
+    note = Column(String(500), nullable=True)
+    date = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationship to user
     user = relationship("User", back_populates="transactions")
 
 
-# ============================================================
-# 3. PYDANTIC SCHEMAS (Request/Response Validation)
-# ============================================================
+# Request/Response Validation Schemas
 class UserBase(BaseModel):
     """Base user schema"""
     email: str
@@ -107,9 +100,6 @@ class TokenResponse(BaseModel):
     user: UserResponse
 
 
-# ============================================================
-# 4. TRANSACTION SCHEMAS
-# ============================================================
 class TransactionCreate(BaseModel):
     """Schema for creating a new transaction"""
     amount: Decimal
@@ -133,21 +123,18 @@ class TransactionResponse(BaseModel):
         from_attributes = True
 
 
-# ============================================================
-# 5. CATEGORY MODELS & SCHEMAS
-# ============================================================
+# CATEGORY MODELS & SCHEMAS
 class Category(Base):
     __tablename__ = "categories"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
-    type = Column(String(20), nullable=False)  # "income" or "expense"
-    icon = Column(String(50), nullable=False)  # Icon name from Lucide
-    color = Column(String(20), nullable=True)  # Hex code
+    type = Column(String(20), nullable=False)
+    icon = Column(String(50), nullable=False)  
+    color = Column(String(20), nullable=True)  
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relationship to user
     user = relationship("User", back_populates="categories")
 
 
@@ -173,6 +160,31 @@ class CategoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# EMAIL OTP MODEL & SCHEMAS
+class EmailOTP(Base):
+    __tablename__ = "email_otps"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String(255), index=True, nullable=False)
+    otp_code = Column(String(6), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class OTPRequest(BaseModel):
+    """Schema for requesting OTP"""
+    email: str
+    name: str
+
+
+class OTPVerifyRequest(BaseModel):
+    """Schema for verifying OTP during signup"""
+    email: str
+    name: str
+    password: str
+    otp_code: str
 
 
 class UserUpdate(BaseModel):

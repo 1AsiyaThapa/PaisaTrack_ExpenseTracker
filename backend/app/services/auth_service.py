@@ -12,9 +12,7 @@ from dotenv import load_dotenv
 from app.models import User, SignupRequest, LoginRequest, TokenResponse, UserResponse
 from app.services import user_service
 
-# ============================================================
-# CONFIG - Load from .env
-# ============================================================
+# THe following lines below load all the environment variables which includes constants and secrets.
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
@@ -26,11 +24,8 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 
-# ============================================================
 # SECURITY HELPERS (JWT & Password)
-# ============================================================
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create JWT access token"""
     to_encode = data.copy()
 
     if expires_delta:
@@ -71,9 +66,7 @@ def verify_password(password: str, hashed: str) -> bool:
     return hash_password(password) == hashed
 
 
-# ============================================================
 # AUTH FUNCTIONS
-# ============================================================
 async def verify_google_token(token: str) -> dict:
     """Verify Google access token and get user info"""
     try:

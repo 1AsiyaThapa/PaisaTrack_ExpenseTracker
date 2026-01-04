@@ -9,9 +9,7 @@ router = APIRouter()
 
 
 def get_current_user_id(request: Request) -> str:
-    """
-    Simple helper to get current user ID from JWT token in cookie.
-    """
+    # Helper to get current user ID from JWT token in cookie.
     token = request.cookies.get("auth_token")
     if not token:
         raise HTTPException(

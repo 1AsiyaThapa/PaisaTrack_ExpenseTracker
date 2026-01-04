@@ -1,7 +1,3 @@
-"""
-Transaction service functions for PaisaTrack
-"""
-
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -10,9 +6,7 @@ from decimal import Decimal
 from app.models import Transaction, TransactionCreate, TransactionResponse
 
 
-# ============================================================
 # TRANSACTION SERVICE FUNCTIONS
-# ============================================================
 def create_transaction(db: Session, user_id: str, data: TransactionCreate) -> Transaction:
     """Create a new transaction for a user"""
     transaction = Transaction(
