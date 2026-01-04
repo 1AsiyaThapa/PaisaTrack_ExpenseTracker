@@ -2,9 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-// No generic icons - we'll create unique visual elements
 
-// Constants - keeping data separate from component
 const FEATURES = [
   {
     title: "Easy to use",
@@ -53,7 +51,6 @@ const DEMO_DATA = {
   saved: "NPR 24,500"
 };
 
-// Reusable components
 function Logo() {
   return (
     <div className="flex items-center space-x-2">
@@ -70,7 +67,7 @@ function Logo() {
 
 function Header() {
   const router = useRouter();
-  
+
   return (
     <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
       <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 py-4">
@@ -92,7 +89,7 @@ function Header() {
 
 function HeroSection() {
   const router = useRouter();
-  
+
   return (
     <section className="max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 py-16">
       <div className="max-w-4xl mx-auto">
@@ -130,7 +127,7 @@ function ExpenseDemo() {
         <h3 className="font-medium text-gray-800">This Month</h3>
         <span className="text-sm text-gray-500">{DEMO_DATA.month}</span>
       </div>
-      
+
       <div className="space-y-3">
         <div className="flex justify-between items-center">
           <span className="text-gray-600">Income</span>
@@ -154,7 +151,7 @@ function FeatureCard({ feature, index }: { feature: typeof FEATURES[0], index: n
   const moneyElements = [
     "₨", "🇳🇵", "💎", "📈", "💳", "🏦", "💎", "₨"
   ];
-  
+
   return (
     <div className="group relative">
       {/* Flowing money elements */}
@@ -163,7 +160,7 @@ function FeatureCard({ feature, index }: { feature: typeof FEATURES[0], index: n
           {moneyElements[index % moneyElements.length]}
         </div>
       </div>
-      
+
       {/* Bubbly card */}
       <div className="relative bg-white rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-red-100 hover:border-red-300 group-hover:scale-105">
         {/* Bubbly background pattern */}
@@ -172,14 +169,14 @@ function FeatureCard({ feature, index }: { feature: typeof FEATURES[0], index: n
           <div className="absolute bottom-2 left-2 w-1.5 h-1.5 bg-orange-200 rounded-full opacity-40"></div>
           <div className="absolute top-1/2 right-1/4 w-1 h-1 bg-amber-200 rounded-full opacity-50"></div>
         </div>
-        
+
         {/* Number bubble */}
         <div className="relative mb-3">
           <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 text-white text-sm font-bold rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
             {feature.visual}
           </div>
         </div>
-        
+
         {/* Content */}
         <div className="relative">
           <h3 className="font-semibold text-gray-900 mb-2 text-base">
@@ -189,7 +186,7 @@ function FeatureCard({ feature, index }: { feature: typeof FEATURES[0], index: n
             {feature.description}
           </p>
         </div>
-        
+
         {/* Flowing line indicator */}
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-red-400 to-orange-400 rounded-b-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
       </div>
@@ -205,28 +202,28 @@ function FeaturesSection() {
       <div className="absolute top-32 right-20 text-3xl opacity-10 animate-bounce" style={{ animationDelay: '1s' }}>🇳🇵</div>
       <div className="absolute bottom-20 left-1/4 text-3xl opacity-10 animate-pulse" style={{ animationDelay: '2s' }}>📈</div>
       <div className="absolute bottom-32 right-10 text-4xl opacity-10 animate-bounce" style={{ animationDelay: '0.5s' }}>💎</div>
-      
+
       <div className="max-w-6xl mx-auto relative">
-         {/* Header */}
-         <div className="text-center mb-16">
-           <h2 className="text-3xl font-bold text-gray-800 mb-4">
-             Why <span className="text-gray-800">पैसा</span> <span className="bg-gradient-to-r from-red-600 to-orange-500 bg-clip-text text-transparent">Track</span>?
-           </h2>
-           <p className="text-lg text-gray-600">
-             Simple features that help you save more money
-           </p>
-         </div>
+        {/* Header */}
+        <div className="text-center mb-16">
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">
+            Why <span className="text-gray-800">पैसा</span> <span className="bg-gradient-to-r from-red-600 to-orange-500 bg-clip-text text-transparent">Track</span>?
+          </h2>
+          <p className="text-lg text-gray-600">
+            Simple features that help you save more money
+          </p>
+        </div>
 
         {/* Diagonal staircase layout using CSS Grid */}
         <div className="relative">
           {/* Diagonal connecting flow line */}
           <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
             <svg className="w-full h-full" viewBox="0 0 800 600" preserveAspectRatio="none">
-              <path 
-                d="M 100 100 L 200 200 L 300 300 L 400 400" 
-                stroke="url(#gradient)" 
-                strokeWidth="3" 
-                fill="none" 
+              <path
+                d="M 100 100 L 200 200 L 300 300 L 400 400"
+                stroke="url(#gradient)"
+                strokeWidth="3"
+                fill="none"
                 opacity="0.3"
                 strokeDasharray="10,5"
               />
@@ -239,12 +236,12 @@ function FeaturesSection() {
               </defs>
             </svg>
           </div>
-          
+
           {/* Feature cards in diagonal staircase using grid */}
           <div className="grid grid-cols-4 gap-8 items-start">
             {FEATURES.map((feature, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className={`${index === 0 ? 'col-start-1' : index === 1 ? 'col-start-2' : index === 2 ? 'col-start-3' : 'col-start-4'} ${index > 0 ? 'mt-16' : ''} ${index > 1 ? 'mt-32' : ''} ${index > 2 ? 'mt-48' : ''}`}
               >
                 <FeatureCard feature={feature} index={index} />
@@ -252,7 +249,7 @@ function FeaturesSection() {
             ))}
           </div>
         </div>
-        
+
       </div>
     </section>
   );
@@ -277,7 +274,7 @@ function TestimonialsSection() {
         <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center">
           What people are saying
         </h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {TESTIMONIALS.map((testimonial, index) => (
             <TestimonialCard key={index} testimonial={testimonial} />
@@ -290,7 +287,7 @@ function TestimonialsSection() {
 
 function CTASection() {
   const router = useRouter();
-  
+
   return (
     <section className="max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 py-16">
       <div className="max-w-2xl mx-auto text-center">

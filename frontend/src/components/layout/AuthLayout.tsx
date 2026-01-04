@@ -1,7 +1,3 @@
-/**
- * Authentication Layout Component for PaisaTrack
- */
-
 import React from 'react';
 
 interface AuthLayoutProps {
@@ -10,7 +6,6 @@ interface AuthLayoutProps {
   children: React.ReactNode;
 }
 
-// Reusable Logo component
 function Logo() {
   return (
     <div className="flex items-center space-x-2">

@@ -1,7 +1,3 @@
-/**
- * Page Transition Component for PaisaTrack
- */
-
 import React from 'react';
 
 interface PageTransitionProps {

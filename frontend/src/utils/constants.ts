@@ -1,8 +1,3 @@
-/**
- * Application Constants for PaisaTrack
- */
-
-// Transaction categories
 export const TRANSACTION_CATEGORIES = {
   INCOME: [
     'Salary',
@@ -26,7 +21,6 @@ export const TRANSACTION_CATEGORIES = {
   ]
 } as const;
 
-// Chart colors for visualizations
 export const CHART_COLORS = [
   '#3B82F6', // Blue
   '#10B981', // Green
@@ -40,16 +34,12 @@ export const CHART_COLORS = [
   '#6B7280'  // Gray
 ] as const;
 
-// Budget status colors
 export const BUDGET_COLORS = {
   GOOD: 'bg-green-500',
   WARNING: 'bg-amber-500',
   DANGER: 'bg-red-500'
 } as const;
 
-// API configuration - DEPRECATED: Use config/constants.ts instead
-
-// Local storage keys
 export const STORAGE_KEYS = {
   AUTH_TOKEN: 'paisatrack-auth-token',
   USER_DATA: 'paisatrack-user',
@@ -57,7 +47,6 @@ export const STORAGE_KEYS = {
   THEME: 'paisatrack-theme'
 } as const;
 
-// Validation rules
 export const VALIDATION = {
   PASSWORD_MIN_LENGTH: 6,
   TRANSACTION_MAX_AMOUNT: 1000000,

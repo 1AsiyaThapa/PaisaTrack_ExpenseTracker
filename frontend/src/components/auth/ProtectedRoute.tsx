@@ -5,9 +5,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { useEffect } from 'react';
 
-/**
- * ProtectedRoute component that redirects to login if user is not authenticated
- */
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();

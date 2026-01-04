@@ -10,22 +10,21 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   children: React.ReactNode;
 }
 
-export function Select({ 
-  label, 
-  error, 
+export function Select({
+  label,
+  error,
   helpText,
-  className, 
+  className,
   children,
   id,
-  ...props 
+  ...props
 }: SelectProps) {
-  // Generate a unique ID if not provided
   const selectId = id || `select-${Math.random().toString(36).substring(2, 9)}`;
-  
+
   return (
     <div className="space-y-1">
       {label && (
-        <label 
+        <label
           htmlFor={selectId}
           className="block text-sm font-medium text-gray-700 dark:text-gray-300"
         >

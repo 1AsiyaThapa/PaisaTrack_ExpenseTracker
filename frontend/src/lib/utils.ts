@@ -1,7 +1,3 @@
-/**
- * Utility functions for PaisaTrack
- */
-
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -9,7 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Validation functions
 export function validateEmail(email: string): string | null {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email) return 'Email is required';
@@ -25,7 +20,6 @@ export function validatePassword(password: string): string | null {
   return null;
 }
 
-// Individual password requirement checks for real-time UI feedback
 export function checkPasswordRequirements(password: string): {
   hasMinLength: boolean;
   hasNumber: boolean;
@@ -50,7 +44,6 @@ export function validateConfirmPassword(password: string, confirmPassword: strin
   return null;
 }
 
-// Format currency
 export function formatCurrency(amount: number, currency: string = 'NPR'): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -58,7 +51,6 @@ export function formatCurrency(amount: number, currency: string = 'NPR'): string
   }).format(amount);
 }
 
-// Format date
 export function formatDate(date: string | Date): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   return new Intl.DateTimeFormat('en-US', {
@@ -68,7 +60,6 @@ export function formatDate(date: string | Date): string {
   }).format(dateObj);
 }
 
-// Format date and time
 export function formatDateTime(date: string | Date): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   return new Intl.DateTimeFormat('en-US', {

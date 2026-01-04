@@ -1,8 +1,3 @@
-/**
- * Authentication Hook for PaisaTrack
- * Manages user authentication state
- */
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -32,7 +27,6 @@ export function useAuth(): UseAuthReturn {
   const [signupError, setSignupError] = useState<Error | null>(null);
   const router = useRouter();
 
-  // Check authentication status on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -52,7 +46,7 @@ export function useAuth(): UseAuthReturn {
   const login = useCallback(async (credentials: LoginCredentials) => {
     setIsLoginPending(true);
     setLoginError(null);
-    
+
     try {
       const response = await authService.login(credentials);
       setUser(response.user);
@@ -69,7 +63,7 @@ export function useAuth(): UseAuthReturn {
   const signup = useCallback(async (data: SignupData) => {
     setIsSignupPending(true);
     setSignupError(null);
-    
+
     try {
       const response = await authService.signup(data);
       setUser(response.user);

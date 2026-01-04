@@ -1,8 +1,3 @@
-/**
- * Google OAuth Button Component for PaisaTrack
- * Handles Google OAuth authentication flow
- */
-
 import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { authService } from '../../services/authService';
@@ -14,9 +9,9 @@ interface GoogleOAuthButtonProps {
   className?: string;
 }
 
-export function GoogleOAuthButton({ 
-  onSuccess, 
-  onError, 
+export function GoogleOAuthButton({
+  onSuccess,
+  onError,
   disabled = false,
   className = ""
 }: GoogleOAuthButtonProps) {
@@ -25,13 +20,12 @@ export function GoogleOAuthButton({
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
-      
-      // Check if Google Client ID is configured
+
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
       if (!clientId || clientId === 'your_google_client_id_here') {
         throw new Error('Google OAuth is not configured. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID in your environment variables.');
       }
-      
+
       await authService.initiateGoogleLogin();
       onSuccess?.();
     } catch (error) {

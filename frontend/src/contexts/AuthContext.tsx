@@ -8,7 +8,8 @@ import { STORAGE_KEYS } from '../utils/constants';
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string, otp_code: string) => Promise<void>;
+  requestOTP: (name: string, email: string) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -20,10 +21,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
     const checkAuth = async () => {
       if (typeof window !== 'undefined') {
-        // First check localStorage
         const savedUser = localStorage.getItem(STORAGE_KEYS.USER_DATA);
         if (savedUser) {
           try {
@@ -36,14 +35,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // If no localStorage data, check if we have a valid session via cookie
         try {
           const userData = await authService.checkAuthStatus();
           if (userData) {
             setUser(userData);
             localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
           }
-          // If no userData, that's fine - user is just not authenticated
         } catch (error) {
           console.error('Error checking auth status:', error);
         }
@@ -58,11 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const userData = await authService.login(email, password);
-      
+
       setUser(userData);
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
-        // Redirect to dashboard after successful login
         window.location.href = '/dashboard';
       }
     } catch (error) {
@@ -73,19 +69,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signup = async (name: string, email: string, password: string) => {
+  const signup = async (name: string, email: string, password: string, otp_code: string) => {
     setLoading(true);
     try {
-      const userData = await authService.register({ name, email, password });
-      
+      const userData = await authService.register({ name, email, password, otp_code });
+
       setUser(userData);
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
-        // Redirect to dashboard after successful signup
         window.location.href = '/dashboard';
       }
     } catch (error) {
       console.error('Signup error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const requestOTP = async (name: string, email: string) => {
+    setLoading(true);
+    try {
+      await authService.requestOTP(name, email);
+    } catch (error) {
+      console.error('Request OTP error:', error);
       throw error;
     } finally {
       setLoading(false);
@@ -97,18 +104,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authService.logout();
     } catch (error) {
       console.error('Logout error:', error);
-      // Continue with logout even if API call fails
     } finally {
       setUser(null);
       if (typeof window !== 'undefined') {
         localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-        // No need to remove AUTH_TOKEN as it's handled by HTTP-only cookies
       }
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, signup, requestOTP, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
