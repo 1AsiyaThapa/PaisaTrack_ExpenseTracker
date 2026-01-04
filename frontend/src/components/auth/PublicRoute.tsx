@@ -5,9 +5,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { useEffect } from 'react';
 
-/**
- * PublicRoute component that redirects to dashboard if user is already authenticated
- */
 export function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();

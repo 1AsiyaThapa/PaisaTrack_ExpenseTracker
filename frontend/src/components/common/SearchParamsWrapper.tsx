@@ -1,7 +1,3 @@
-/**
- * Search Params Wrapper Component for PaisaTrack
- */
-
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 

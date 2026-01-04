@@ -1,7 +1,3 @@
-/**
- * Form Input Component for PaisaTrack
- */
-
 import React from 'react';
 import { Input } from '../ui/Input';
 import { LucideIcon } from 'lucide-react';

@@ -1,31 +1,7 @@
-/**
- * API Service Layer - Real Backend Integration
- * 
- * This file contains real API implementations for all backend calls.
- * All functions make actual HTTP requests to the backend server.
- * 
- * CURRENT STATUS: 
- * - All functions make real API calls
- * - Backend integration is active
- * - Authentication and error handling included
- * 
- * CONFIGURATION:
- * - BASE_URL: Set via NEXT_PUBLIC_API_BASE_URL environment variable
- * - Default: http://localhost:8000
- * - Authentication: Uses cookies for session management
- */
-
 import { Transaction, User, Budget, RecurringTransaction, Category, CategoryCreate } from '../types';
 
-// Configuration
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'; // Backend URL
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
-
-/**
- * Generic API request function
- * This will handle all HTTP requests to your backend
- * Uses HTTP-only cookies for authentication (no manual token handling needed)
- */
 async function apiRequest<T>(
   endpoint: string,
   options?: RequestInit
@@ -34,20 +10,16 @@ async function apiRequest<T>(
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
-      // Authentication is handled via HTTP-only cookies automatically
     },
-    credentials: 'include', // Include cookies for authentication
+    credentials: 'include',
     ...options,
   });
 
   if (!response.ok) {
-    // Handle authentication errors specifically
     if (response.status === 401) {
-      // Clear any stale user data from localStorage
       if (typeof window !== 'undefined') {
         localStorage.removeItem('paisatrack-user');
       }
-      // Only throw authentication error for actual API calls, not auth status checks
       throw new Error('Authentication required. Please log in again.');
     }
     throw new Error(`API Error: ${response.status} ${response.statusText}`);
@@ -56,78 +28,53 @@ async function apiRequest<T>(
   return response.json();
 }
 
-// =============================================================================
-// AUTH SERVICES
-// =============================================================================
-
 export const authService = {
-  /**
-   * Login user with email and password
-   * Backend endpoint: POST /auth/login
-   * JWT token is automatically set as HTTP-only cookie by backend
-   */
   async login(email: string, password: string): Promise<User> {
     const response = await apiRequest<{ access_token: string; user: User }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    // Token is automatically stored in HTTP-only cookie by backend
-    // We only need to return the user data
     return response.user;
   },
 
-  /**
-   * Register new user
-   * Backend endpoint: POST /auth/signup
-   * JWT token is automatically set as HTTP-only cookie by backend
-   */
   async register(userData: {
     name: string;
     email: string;
     password: string;
+    otp_code: string;
   }): Promise<User> {
     const response = await apiRequest<{ access_token: string; user: User }>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
-    // Token is automatically stored in HTTP-only cookie by backend
-    // We only need to return the user data
     return response.user;
   },
 
-  /**
-   * Logout user
-   * Backend endpoint: POST /auth/logout
-   */
+  async requestOTP(name: string, email: string): Promise<{ message: string }> {
+    return apiRequest<{ message: string }>('/auth/request-otp', {
+      method: 'POST',
+      body: JSON.stringify({ name, email }),
+    });
+  },
+
   async logout(): Promise<void> {
     try {
       await apiRequest<void>('/auth/logout', {
         method: 'POST',
       });
     } catch (error) {
-      // Continue with logout even if API call fails
       console.error('Logout API call failed:', error);
     }
   },
 
-  /**
-   * Get current user from server using cookie authentication
-   * Backend endpoint: GET /users/me
-   */
   async getCurrentUser(): Promise<User | null> {
     try {
       return await apiRequest<User>('/users/me');
     } catch (error) {
-      // Don't log this as an error since it's expected when user is not authenticated
-      // Just return null to indicate no valid session
       return null;
     }
   },
 
-  /**
-   * Check if user is authenticated by making a direct request
-   * This method doesn't use the generic apiRequest to avoid error throwing
-   */
   async checkAuthStatus(): Promise<User | null> {
     try {
       const response = await fetch(`${BASE_URL}/users/me`, {
@@ -147,24 +94,12 @@ export const authService = {
   },
 };
 
-// =============================================================================
-// TRANSACTION SERVICES
-// =============================================================================
-
 export const transactionService = {
-  /**
-   * Get all transactions for the current user
-   * Backend endpoint: GET /transactions
-   */
   async getTransactions(type?: 'income' | 'expense'): Promise<Transaction[]> {
     const url = type ? `/transactions?type=${type}` : '/transactions';
     return apiRequest<Transaction[]>(url);
   },
 
-  /**
-   * Get dashboard statistics
-   * Backend endpoint: GET /transactions/stats
-   */
   async getStats(): Promise<{
     total_income: number;
     total_expenses: number;
@@ -174,10 +109,6 @@ export const transactionService = {
     return apiRequest('/transactions/stats');
   },
 
-  /**
-   * Create a new transaction
-   * Backend endpoint: POST /transactions
-   */
   async createTransaction(transaction: {
     amount: number;
     type: 'income' | 'expense';
@@ -191,10 +122,6 @@ export const transactionService = {
     });
   },
 
-  /**
-   * Delete a transaction
-   * Backend endpoint: DELETE /transactions/:id
-   */
   async deleteTransaction(id: string): Promise<void> {
     return apiRequest<void>(`/transactions/${id}`, {
       method: 'DELETE',
@@ -202,23 +129,11 @@ export const transactionService = {
   },
 };
 
-// =============================================================================
-// BUDGET SERVICES
-// =============================================================================
-
 export const budgetService = {
-  /**
-   * Get user's budget settings
-   * Backend endpoint: GET /budget
-   */
   async getBudget(): Promise<Budget[]> {
     return apiRequest<Budget[]>('/budget');
   },
 
-  /**
-   * Update budget settings
-   * Backend endpoint: PUT /budget
-   */
   async updateBudget(budget: Partial<Budget>): Promise<Budget> {
     return apiRequest<Budget>('/budget', {
       method: 'PUT',
@@ -227,33 +142,17 @@ export const budgetService = {
   },
 };
 
-// =============================================================================
-// RECURRING TRANSACTION SERVICES
-// =============================================================================
-
 export const recurringTransactionService = {
-  /**
-   * Get all recurring transactions
-   * Backend endpoint: GET /recurring-transactions
-   */
   async getRecurringTransactions(): Promise<RecurringTransaction[]> {
     return apiRequest<RecurringTransaction[]>('/recurring-transactions');
   },
 
-  /**
-   * Mark a recurring transaction as paid
-   * Backend endpoint: POST /recurring-transactions/:id/mark-paid
-   */
   async markAsPaid(id: string): Promise<void> {
     return apiRequest<void>(`/recurring-transactions/${id}/mark-paid`, {
       method: 'POST',
     });
   },
 
-  /**
-   * Skip a recurring transaction this time
-   * Backend endpoint: POST /recurring-transactions/:id/skip
-   */
   async skipThisTime(id: string): Promise<void> {
     return apiRequest<void>(`/recurring-transactions/${id}/skip`, {
       method: 'POST',
@@ -261,23 +160,11 @@ export const recurringTransactionService = {
   },
 };
 
-// =============================================================================
-// USER PROFILE SERVICES
-// =============================================================================
-
 export const userService = {
-  /**
-   * Get user profile
-   * Backend endpoint: GET /users/me
-   */
   async getProfile(): Promise<User> {
     return apiRequest<User>('/users/me');
   },
 
-  /**
-   * Update user profile
-   * Backend endpoint: PUT /users/me
-   */
   async updateProfile(userData: { name?: string; password?: string; new_password?: string }): Promise<User> {
     return apiRequest<User>('/users/me', {
       method: 'PUT',
@@ -286,24 +173,12 @@ export const userService = {
   },
 };
 
-// =============================================================================
-// CATEGORY SERVICES
-// =============================================================================
-
 export const categoryService = {
-  /**
-   * Get all categories
-   * Backend endpoint: GET /categories
-   */
   async getCategories(type?: 'income' | 'expense'): Promise<Category[]> {
     const url = type ? `/categories?type=${type}` : '/categories';
     return apiRequest<Category[]>(url);
   },
 
-  /**
-   * Create a new category
-   * Backend endpoint: POST /categories
-   */
   async createCategory(category: {
     name: string;
     type: 'income' | 'expense';
@@ -316,10 +191,6 @@ export const categoryService = {
     });
   },
 
-  /**
-   * Update a category
-   * Backend endpoint: PUT /categories/:id
-   */
   async updateCategory(id: string, category: {
     name: string;
     type: 'income' | 'expense';
@@ -332,10 +203,6 @@ export const categoryService = {
     });
   },
 
-  /**
-   * Delete a category
-   * Backend endpoint: DELETE /categories/:id
-   */
   async deleteCategory(id: string): Promise<void> {
     return apiRequest<void>(`/categories/${id}`, {
       method: 'DELETE',

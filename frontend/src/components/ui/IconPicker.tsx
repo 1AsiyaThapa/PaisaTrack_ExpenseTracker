@@ -11,7 +11,6 @@ import { Button } from './Button';
 import { Input } from './Input';
 import { cn } from '@/lib/utils';
 
-// Map of icon names to components
 export const ICON_MAP: Record<string, any> = {
     None: CircleOff,
     Wallet, CreditCard, Banknote, PiggyBank, Briefcase,

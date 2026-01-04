@@ -15,9 +15,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { validateEmail, validatePassword } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 
-// Component to handle search params without causing render issues
-function LoginContent({ searchParams, onAuthError }: { 
-  searchParams: URLSearchParams; 
+function LoginContent({ searchParams, onAuthError }: {
+  searchParams: URLSearchParams;
   onAuthError: (error: string | null) => void;
 }) {
   useEffect(() => {
@@ -33,7 +32,7 @@ function LoginContent({ searchParams, onAuthError }: {
 export default function Login() {
   const { login, loading } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
-  
+
   const [formState, formActions] = useForm<{
     email: string;
     password: string;
@@ -45,7 +44,7 @@ export default function Login() {
       password: [validatePassword],
     },
   });
-  
+
   const { values, errors } = formState;
   const { handleChange, handleSubmit, setFieldError } = formActions;
 
@@ -57,14 +56,12 @@ export default function Login() {
         formValues.password
       );
     } catch (error: unknown) {
-      // Handle login errors
       const errorMessage = error instanceof Error ? error.message : 'Login failed. Please try again.';
       setFieldError('email', errorMessage);
     }
   };
 
   const handleGoogleSuccess = () => {
-    // Google login initiated successfully
   };
 
   const handleGoogleError = (error: string) => {

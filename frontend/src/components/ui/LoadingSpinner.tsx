@@ -1,7 +1,3 @@
-/**
- * LoadingSpinner component for displaying loading states
- */
-
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;

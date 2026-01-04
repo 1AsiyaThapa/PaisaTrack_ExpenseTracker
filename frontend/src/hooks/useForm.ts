@@ -1,7 +1,3 @@
-/**
- * Form Hook for PaisaTrack
- */
-
 import { useState, useCallback } from 'react';
 
 interface FormState<T> {
@@ -48,8 +44,7 @@ export function useForm<T extends Record<string, string>>({
 
   const handleChange = useCallback((field: keyof T, value: string) => {
     setValues(prev => ({ ...prev, [field]: value }));
-    
-    // Clear error when user starts typing
+
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -72,8 +67,7 @@ export function useForm<T extends Record<string, string>>({
   const handleSubmit = useCallback((onSubmit: (values: T) => void | Promise<void>) => {
     return async (e: React.FormEvent) => {
       e.preventDefault();
-      
-      // Validate all fields
+
       const newErrors: Partial<Record<keyof T, string>> = {};
       let hasErrors = false;
 

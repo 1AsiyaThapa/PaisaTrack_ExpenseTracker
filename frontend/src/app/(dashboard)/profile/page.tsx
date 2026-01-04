@@ -67,7 +67,6 @@ export default function ProfilePage() {
                 new_password: profileData.new_password || undefined,
             });
             alert('Profile updated successfully');
-            // Ideally update auth context here, but for now page refresh or re-fetch works
             window.location.reload();
         } catch (error) {
             console.error('Profile update failed', error);
