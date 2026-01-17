@@ -27,11 +27,10 @@ def get_db():
         db.close()
 
 
-# DATABASE TABLES (SQLAlchemy Models)
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))  # UUID length
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False)
     google_id = Column(String(255), unique=True, index=True, nullable=True)

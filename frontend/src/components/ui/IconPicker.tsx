@@ -5,13 +5,14 @@ import {
     Plane, Home, Zap, Wifi, Phone, Gift, Heart,
     Music, Book, GraduationCap, Dumbbell, Stethoscope,
     Film, Gamepad, Laptop, Smartphone, Camera,
-    Search, X, CircleOff
+    X, CircleOff
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Button } from './Button';
 import { Input } from './Input';
 import { cn } from '@/lib/utils';
 
-export const ICON_MAP: Record<string, any> = {
+export const ICON_MAP: Record<string, LucideIcon> = {
     None: CircleOff,
     Wallet, CreditCard, Banknote, PiggyBank, Briefcase,
     ShoppingBag, ShoppingCart, Utensils, Coffee, Car,

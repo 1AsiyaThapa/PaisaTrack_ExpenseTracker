@@ -22,7 +22,25 @@ async function apiRequest<T>(
       }
       throw new Error('Authentication required. Please log in again.');
     }
-    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    
+    let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.detail) {
+        if (Array.isArray(errorData.detail)) {
+          errorMessage = errorData.detail.map((err: any) => 
+            `${err.loc?.join('.')}: ${err.msg}`
+          ).join(', ');
+        } else {
+          errorMessage = errorData.detail;
+        }
+      } else if (errorData.message) {
+        errorMessage = errorData.message;
+      }
+    } catch {
+    }
+    
+    throw new Error(errorMessage);
   }
 
   return response.json();

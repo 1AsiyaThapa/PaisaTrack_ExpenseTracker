@@ -2,6 +2,7 @@
 
 import { Sidebar } from '@/components/layout/Sidebar';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { Chatbot } from '@/components/Chatbot';
 
 export default function DashboardLayout({
     children,
@@ -17,6 +18,7 @@ export default function DashboardLayout({
                         {children}
                     </div>
                 </main>
+                <Chatbot />
             </div>
         </ProtectedRoute>
     );
