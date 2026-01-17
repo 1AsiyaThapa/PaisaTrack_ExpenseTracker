@@ -276,7 +276,7 @@ export default function Signup() {
                           <Mail className="h-8 w-8 text-blue-600" />
                         </div>
                         <p className="text-sm text-gray-600">
-                          We've sent a 6-digit verification code to <span className="font-semibold">{values.email}</span>.
+                          We&apos;ve sent a 6-digit verification code to <span className="font-semibold">{values.email}</span>.
                           Please enter it below to confirm your account.
                         </p>
                       </div>
