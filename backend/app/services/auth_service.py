@@ -9,7 +9,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from app.models import User, SignupRequest, LoginRequest, TokenResponse, UserResponse
+from app.models import User
+from app.schemas import SignupRequest, LoginRequest, TokenResponse, UserResponse
 from app.services import user_service
 
 # THe following lines below load all the environment variables which includes constants and secrets.

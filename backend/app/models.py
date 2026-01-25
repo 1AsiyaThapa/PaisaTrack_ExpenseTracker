@@ -1,14 +1,13 @@
-from sqlalchemy import create_engine, Column, String, Boolean, DateTime, Numeric, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy.sql import func
-from pydantic import BaseModel
-from typing import Optional, Literal
+from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
 import os
 import uuid
 from dotenv import load_dotenv
+
+from sqlalchemy import create_engine, String, DateTime, Numeric, ForeignKey
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker, relationship
+from sqlalchemy.sql import func
 
 load_dotenv()
 
@@ -16,7 +15,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 def get_db():
@@ -30,166 +32,53 @@ def get_db():
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    email = Column(String(255), unique=True, index=True, nullable=False)
-    name = Column(String(255), nullable=False)
-    google_id = Column(String(255), unique=True, index=True, nullable=True)
-    password_hash = Column(String(255), nullable=True)
-    picture = Column(String(512), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    google_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[Optional[str]] = mapped_column(String(255))
+    picture: Mapped[Optional[str]] = mapped_column(String(512))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationship to transactions
-    transactions = relationship("Transaction", back_populates="user")
+    transactions: Mapped[List["Transaction"]] = relationship(back_populates="user")
+    categories: Mapped[List["Category"]] = relationship(back_populates="user")
 
 
 class Transaction(Base):
     __tablename__ = "transactions"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    amount = Column(Numeric(12, 2), nullable=False)
-    type = Column(String(20), nullable=False)
-    category = Column(String(100), nullable=False)
-    note = Column(String(500), nullable=True)
-    date = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    type: Mapped[str] = mapped_column(String(20))
+    category: Mapped[str] = mapped_column(String(100))
+    note: Mapped[Optional[str]] = mapped_column(String(500))
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    # Relationship to user
-    user = relationship("User", back_populates="transactions")
-
-
-# Request/Response Validation Schemas
-class UserBase(BaseModel):
-    """Base user schema"""
-    email: str
-    name: str
-    picture: Optional[str] = None
+    user: Mapped["User"] = relationship(back_populates="transactions")
 
 
-class SignupRequest(UserBase):
-    """Schema for email/password signup"""
-    password: str
-
-
-class LoginRequest(BaseModel):
-    """Schema for email/password login"""
-    email: str
-    password: str
-    remember_me: bool = False
-
-
-class UserResponse(UserBase):
-    """Schema for user response"""
-    id: str
-    google_id: Optional[str] = None
-    role: str = "user"
-    is_active: bool = True
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-
-class TokenResponse(BaseModel):
-    """Schema for token response"""
-    access_token: str
-    token_type: str
-    user: UserResponse
-
-
-class TransactionCreate(BaseModel):
-    """Schema for creating a new transaction"""
-    amount: Decimal
-    type: Literal["income", "expense"]
-    category: str
-    note: Optional[str] = None
-    date: datetime
-
-
-class TransactionResponse(BaseModel):
-    """Schema for transaction response"""
-    id: str
-    amount: Decimal
-    type: str
-    category: str
-    note: Optional[str] = None
-    date: datetime
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-# CATEGORY MODELS & SCHEMAS
 class Category(Base):
     __tablename__ = "categories"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    name = Column(String(100), nullable=False)
-    type = Column(String(20), nullable=False)
-    icon = Column(String(50), nullable=False)  
-    color = Column(String(20), nullable=True)  
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    type: Mapped[str] = mapped_column(String(20))
+    icon: Mapped[str] = mapped_column(String(50))
+    color: Mapped[Optional[str]] = mapped_column(String(20))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    user = relationship("User", back_populates="categories")
-
-
-User.categories = relationship("Category", back_populates="user")
+    user: Mapped["User"] = relationship(back_populates="categories")
 
 
-class CategoryCreate(BaseModel):
-    """Schema for creating a category"""
-    name: str
-    type: Literal["income", "expense"]
-    icon: str
-    color: Optional[str] = None
-
-
-class CategoryResponse(BaseModel):
-    """Schema for category response"""
-    id: str
-    name: str
-    type: str
-    icon: str
-    color: Optional[str] = None
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-# EMAIL OTP MODEL & SCHEMAS
 class EmailOTP(Base):
     __tablename__ = "email_otps"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    email = Column(String(255), index=True, nullable=False)
-    otp_code = Column(String(6), nullable=False)
-    expires_at = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-
-class OTPRequest(BaseModel):
-    """Schema for requesting OTP"""
-    email: str
-    name: str
-
-
-class OTPVerifyRequest(BaseModel):
-    """Schema for verifying OTP during signup"""
-    email: str
-    name: str
-    password: str
-    otp_code: str
-
-
-class UserUpdate(BaseModel):
-    """Schema for updating user profile"""
-    name: Optional[str] = None
-    password: Optional[str] = None
-    new_password: Optional[str] = None
-
-
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    otp_code: Mapped[str] = mapped_column(String(6))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
