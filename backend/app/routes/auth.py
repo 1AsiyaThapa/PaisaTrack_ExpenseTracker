@@ -6,7 +6,8 @@ import httpx
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from app.models import get_db, TokenResponse, LoginRequest, SignupRequest, OTPRequest, OTPVerifyRequest
+from app.models import get_db
+from app.schemas import TokenResponse, LoginRequest, SignupRequest, OTPRequest, OTPVerifyRequest
 from app.services import auth_service, user_service, otp_service, email_service
 
 # Load config from .env
@@ -138,7 +139,6 @@ async def signup_with_email(signup_data: OTPVerifyRequest, response: Response, d
     otp_service.verify_otp(db, signup_data.email, signup_data.otp_code)
     
     # Create signup request object
-    from app.models import SignupRequest
     signup_request = SignupRequest(
         email=signup_data.email,
         name=signup_data.name,

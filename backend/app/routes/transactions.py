@@ -2,7 +2,8 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.orm import Session
 
-from app.models import get_db, Transaction, TransactionCreate, TransactionResponse
+from app.models import get_db, Transaction
+from app.schemas import TransactionCreate, TransactionResponse, IncomeExpenseComparisonResponse
 from app.services import transaction_service, auth_service
 
 router = APIRouter()
@@ -84,3 +85,15 @@ async def get_dashboard_stats(
     """Get dashboard statistics for the authenticated user"""
     user_id = get_current_user_id(request)
     return transaction_service.get_user_stats(db, user_id)
+
+
+@router.get("/income-expense-comparison", response_model=IncomeExpenseComparisonResponse)
+async def get_income_expense_comparison(
+    request: Request,
+    db: Session = Depends(get_db),
+    months: int = Query(6, ge=1, le=12, description="Number of months to retrieve (1-12)"),
+):
+    """Get monthly income vs expense comparison data for charting"""
+    user_id = get_current_user_id(request)
+    data = transaction_service.get_income_expense_comparison(db, user_id, months)
+    return IncomeExpenseComparisonResponse(data=data)

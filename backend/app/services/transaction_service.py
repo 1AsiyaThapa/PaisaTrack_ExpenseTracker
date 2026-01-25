@@ -1,9 +1,11 @@
 from typing import Optional, List
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, extract
 from decimal import Decimal
+from datetime import datetime
 
-from app.models import Transaction, TransactionCreate, TransactionResponse
+from app.models import Transaction
+from app.schemas import TransactionCreate, TransactionResponse, IncomeExpenseDataPoint
 
 
 # TRANSACTION SERVICE FUNCTIONS
@@ -87,4 +89,56 @@ def get_user_stats(db: Session, user_id: str) -> dict:
         "balance": float(balance),
         "recent_transactions": [get_transaction_response(t) for t in recent]
     }
+
+
+def get_income_expense_comparison(db: Session, user_id: str, months: int = 6) -> list[IncomeExpenseDataPoint]:
+    """Get monthly income vs expense comparison data"""
+    income_data = db.query(
+        extract('year', Transaction.date).label('year'),
+        extract('month', Transaction.date).label('month'),
+        func.sum(Transaction.amount).label('total')
+    ).filter(
+        Transaction.user_id == user_id,
+        Transaction.type == "income"
+    ).group_by(
+        extract('year', Transaction.date),
+        extract('month', Transaction.date)
+    ).order_by(
+        extract('year', Transaction.date).desc(),
+        extract('month', Transaction.date).desc()
+    ).limit(months).all()
+    
+    expense_data = db.query(
+        extract('year', Transaction.date).label('year'),
+        extract('month', Transaction.date).label('month'),
+        func.sum(Transaction.amount).label('total')
+    ).filter(
+        Transaction.user_id == user_id,
+        Transaction.type == "expense"
+    ).group_by(
+        extract('year', Transaction.date),
+        extract('month', Transaction.date)
+    ).order_by(
+        extract('year', Transaction.date).desc(),
+        extract('month', Transaction.date).desc()
+    ).limit(months).all()
+    
+    income_dict = {(int(row.year), int(row.month)): float(row.total) for row in income_data}
+    expense_dict = {(int(row.year), int(row.month)): float(row.total) for row in expense_data}
+    
+    all_months = sorted(set(list(income_dict.keys()) + list(expense_dict.keys())), reverse=True)[:months]
+    all_months.reverse()
+    
+    result = []
+    month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    
+    for year, month in all_months:
+        month_label = f"{month_names[month - 1]} {year}"
+        result.append(IncomeExpenseDataPoint(
+            month=month_label,
+            income=income_dict.get((year, month), 0.0),
+            expense=expense_dict.get((year, month), 0.0)
+        ))
+    
+    return result
 
