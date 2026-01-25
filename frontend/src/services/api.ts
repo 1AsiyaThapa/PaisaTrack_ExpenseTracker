@@ -145,6 +145,16 @@ export const transactionService = {
       method: 'DELETE',
     });
   },
+
+  async getIncomeExpenseComparison(months: number = 6): Promise<{
+    data: Array<{
+      month: string;
+      income: number;
+      expense: number;
+    }>;
+  }> {
+    return apiRequest(`/transactions/income-expense-comparison?months=${months}`);
+  },
 };
 
 export const budgetService = {

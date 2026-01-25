@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Wallet, CreditCard, PiggyBank } from 'lucide-react';
+import { IncomeExpenseChart } from '@/components/charts/IncomeExpenseChart';
 
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
@@ -21,6 +22,7 @@ export default function Dashboard() {
     balance: 0,
     recent_transactions: [] as Transaction[],
   });
+  const [chartData, setChartData] = useState<Array<{ month: string; income: number; expense: number }>>([]);
   const [loading, setLoading] = useState(true);
 
   // Delete Confirmation State
@@ -28,6 +30,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadStats();
+    loadChartData();
   }, []);
 
   const loadStats = async () => {
@@ -38,6 +41,15 @@ export default function Dashboard() {
       console.error('Error loading stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadChartData = async () => {
+    try {
+      const response = await transactionService.getIncomeExpenseComparison(6);
+      setChartData(response.data);
+    } catch (error) {
+      console.error('Error loading chart data:', error);
     }
   };
 
@@ -125,6 +137,20 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Income vs Expense Chart */}
+      <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-6">Income vs Expenses</h2>
+          {chartData.length === 0 ? (
+            <div className="text-center py-12 text-gray-500 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+              No data available. Add transactions to see your income vs expenses comparison.
+            </div>
+          ) : (
+            <IncomeExpenseChart data={chartData} />
+          )}
+        </CardContent>
+      </Card>
 
       {/* Recent Transactions */}
       <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">

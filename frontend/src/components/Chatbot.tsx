@@ -6,11 +6,14 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
     id: string;
     role: 'user' | 'assistant';
     content: string;
+    isError?: boolean;
+    debugInfo?: string;
 }
 
 export function Chatbot() {
@@ -21,7 +24,7 @@ export function Chatbot() {
         {
             id: '1',
             role: 'assistant',
-            content: 'Hello! I am your personal finance AI assistant. Ask me anything about your expenses or budget.'
+            content: 'Hello! I am your PaisaTrack Financial Assistant AI. I help you track expenses, analyze spending patterns, and manage your finances. Ask me anything about your expenses, income, or budget!'
         }
     ]);
 
@@ -56,11 +59,16 @@ export function Chatbot() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include', // Include cookies for authentication
                 body: JSON.stringify({ prompt: userMessage.content }),
             });
 
             if (!response.ok) {
-                throw new Error('Failed to get response');
+                if (response.status === 401) {
+                    throw new Error('Please log in to use the chatbot.');
+                }
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || `Failed to get response (${response.status})`);
             }
 
             const data = await response.json();
@@ -68,16 +76,21 @@ export function Chatbot() {
             const aiResponse: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: data.response
+                content: data.response,
+                isError: !!data.error,
+                debugInfo: data.debug_info
             };
 
             setMessages(prev => [...prev, aiResponse]);
         } catch (error) {
             console.error('Error calling chatbot API:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
             const errorResponse: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: "Sorry, I'm having trouble connecting to my brain right now. Please try again later."
+                content: errorMessage.includes('log in') 
+                    ? "Please log in to use the chatbot. Your session may have expired."
+                    : "Sorry, I'm having trouble connecting to my brain right now. Please try again later."
             };
             setMessages(prev => [...prev, errorResponse]);
         } finally {
@@ -140,10 +153,40 @@ export function Chatbot() {
                                         "max-w-[80%] rounded-2xl px-4 py-3 text-sm shadow-sm",
                                         msg.role === 'user'
                                             ? "bg-blue-600 text-white rounded-tr-none"
+                                            : msg.isError
+                                            ? "bg-red-50 text-red-800 border border-red-200 rounded-tl-none"
                                             : "bg-white text-gray-700 border border-gray-100 rounded-tl-none"
                                     )}
                                 >
-                                    {msg.content}
+                                    {msg.role === 'assistant' ? (
+                                        <div className="markdown-content">
+                                            <ReactMarkdown
+                                                components={{
+                                                    p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                                                    ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1 ml-2">{children}</ul>,
+                                                    ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1 ml-2">{children}</ol>,
+                                                    li: ({ children }) => <li>{children}</li>,
+                                                    strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                                    em: ({ children }) => <em className="italic">{children}</em>,
+                                                    code: ({ children }) => <code className="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-xs font-mono">{children}</code>,
+                                                    pre: ({ children }) => <pre className="bg-gray-100 text-gray-800 p-2 rounded text-xs font-mono overflow-x-auto mb-2">{children}</pre>,
+                                                    h1: ({ children }) => <h1 className="text-base font-bold mb-2 mt-2">{children}</h1>,
+                                                    h2: ({ children }) => <h2 className="text-sm font-bold mb-2 mt-2">{children}</h2>,
+                                                    h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 mt-2">{children}</h3>,
+                                                    blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-3 italic my-2">{children}</blockquote>,
+                                                }}
+                                            >
+                                                {msg.content}
+                                            </ReactMarkdown>
+                                        </div>
+                                    ) : (
+                                        <div>{msg.content}</div>
+                                    )}
+                                    {msg.debugInfo && (
+                                        <div className="mt-2 text-xs text-red-600 font-mono">
+                                            {msg.debugInfo}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
