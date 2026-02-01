@@ -1,32 +1,43 @@
-from dotenv import load_dotenv
-load_dotenv()
-
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.models import Base, engine
-from app.routes import auth, users, transactions, categories, chatbot
+from fastapi.staticfiles import StaticFiles
 
-# Create tables
+from app.core.config import settings
+from app.core.database import Base, engine
+
+import app.modules.auth.models
+import app.modules.categories.models
+import app.modules.transactions.models
+import app.modules.users.models
+
+from app.modules.auth.routes import router as auth_router
+from app.modules.categories.routes import router as cat_router
+from app.modules.chatbot.routes import router as chat_router
+from app.modules.transactions.routes import router as tx_router
+from app.modules.users.routes import router as users_router
+
 Base.metadata.create_all(bind=engine)
 
-# App
-app = FastAPI(title="PaisaTrack API")
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
-# CORS
+app = FastAPI(title=settings.PROJECT_NAME)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[settings.FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Routes
-app.include_router(auth.router, prefix="/auth")
-app.include_router(users.router, prefix="/users")
-app.include_router(transactions.router, prefix="/transactions")
-app.include_router(categories.router, prefix="/categories")
-app.include_router(chatbot.router, prefix="/chatbot")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(users_router, prefix="/users", tags=["Users"])
+app.include_router(tx_router, prefix="/transactions", tags=["Transactions"])
+app.include_router(cat_router, prefix="/categories", tags=["Categories"])
+app.include_router(chat_router, prefix="/chatbot", tags=["Chatbot"])
 
 
 @app.get("/")
