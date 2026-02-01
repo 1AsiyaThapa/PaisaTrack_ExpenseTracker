@@ -5,17 +5,21 @@ import { Transaction } from '@/types';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Upload, Sparkles, X, CheckCircle2 } from 'lucide-react';
 
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { CategorySelect } from '@/components/ui/CategorySelect';
+import { ExpenseBarChart } from '@/components/charts/ExpenseBarChart';
 
 export default function ExpensePage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [chartData, setChartData] = useState<Array<{ category: string; total: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     amount: '',
@@ -24,12 +28,18 @@ export default function ExpensePage() {
     date: format(new Date(), 'yyyy-MM-dd'),
   });
   const [submitting, setSubmitting] = useState(false);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   // Delete Confirmation State
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     loadTransactions();
+    loadChartData();
   }, []);
 
   const loadTransactions = async () => {
@@ -41,6 +51,69 @@ export default function ExpensePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadChartData = async () => {
+    try {
+      const response = await transactionService.getCategoryProportions('expense');
+      setChartData(response.data);
+    } catch (error) {
+      console.error('Error loading chart data:', error);
+    }
+  };
+
+  const handleFileSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setScanError('Please select an image file');
+      return;
+    }
+    
+    setSelectedFile(file);
+    setScanError(null);
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const handleScan = async () => {
+    if (!selectedFile) return;
+    
+    setScanning(true);
+    setScanError(null);
+    
+    try {
+      const result = await transactionService.scanReceipt(selectedFile);
+      setReceiptUrl(result.receipt_url);
+      
+      setFormData({
+        amount: result.analysis.amount?.toString() || '',
+        category: result.analysis.category || '',
+        date: result.analysis.date || format(new Date(), 'yyyy-MM-dd'),
+        note: result.analysis.note || '',
+      });
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : 'Failed to scan receipt');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleResetReceipt = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setReceiptUrl(null);
+    setScanError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,9 +131,15 @@ export default function ExpensePage() {
         category: formData.category,
         note: formData.note || undefined,
         date: new Date(formData.date).toISOString(),
+        receipt_url: receiptUrl || undefined,
       });
       setFormData({ amount: '', category: '', note: '', date: format(new Date(), 'yyyy-MM-dd') });
+      setReceiptUrl(null);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       loadTransactions();
+      loadChartData();
     } catch (error) {
       console.error('Error creating transaction:', error);
       alert('Failed to add expense');
@@ -74,6 +153,7 @@ export default function ExpensePage() {
     try {
       await transactionService.deleteTransaction(deleteId);
       loadTransactions();
+      loadChartData();
     } catch (error) {
       console.error('Error deleting transaction:', error);
     } finally {
@@ -98,6 +178,103 @@ export default function ExpensePage() {
         <h1 className="text-3xl font-bold text-gray-900">Expenses</h1>
         <p className="text-gray-500 mt-1">Track your spending habits</p>
       </div>
+
+      {/* Receipt Scanner Section */}
+      <Card className="mb-6">
+        <CardContent>
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <div className="p-2 bg-purple-50 rounded-lg">
+              <Sparkles className="w-5 h-5 text-purple-600" />
+            </div>
+            Receipt Scanner
+          </h2>
+          
+          {!previewUrl ? (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-red-400 transition-colors bg-gray-50/50">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center gap-3 mx-auto"
+              >
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <Upload className="w-8 h-8 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Upload Receipt Image</p>
+                  <p className="text-xs text-gray-500 mt-1">Click to select an image file</p>
+                </div>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                <img
+                  src={previewUrl}
+                  alt="Receipt preview"
+                  className="w-full h-auto max-h-64 object-contain"
+                />
+                {receiptUrl && (
+                  <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Ready
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleResetReceipt}
+                  className="flex-1"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Remove Image
+                </Button>
+                {!receiptUrl && (
+                  <Button
+                    type="button"
+                    onClick={handleScan}
+                    disabled={scanning}
+                    className="flex-1"
+                  >
+                    {scanning ? (
+                      <>
+                        <LoadingSpinner size="sm" className="mr-2" />
+                        Scanning...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Scan Receipt
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+              {scanning && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <LoadingSpinner size="sm" />
+                    <p className="text-sm text-blue-900">AI is reading your receipt...</p>
+                  </div>
+                </div>
+              )}
+              {scanError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">{scanError}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileInputChange}
+            className="hidden"
+          />
+        </CardContent>
+      </Card>
 
       {/* Add Expense Form */}
       <Card className="mb-6">
@@ -141,6 +318,17 @@ export default function ExpensePage() {
               {submitting ? 'Adding...' : 'Add Expense'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Category Ranking Chart */}
+      <Card className="mb-6">
+        <CardContent>
+          <h2 className="text-lg font-semibold mb-2">Category Ranking</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            See which categories are eating your budget the most. Sorted from highest to lowest.
+          </p>
+          <ExpenseBarChart data={chartData} />
         </CardContent>
       </Card>
 
