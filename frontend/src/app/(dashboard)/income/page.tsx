@@ -12,10 +12,13 @@ import { Wallet } from 'lucide-react';
 
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { CategorySelect } from '@/components/ui/CategorySelect';
+import { IncomeDonutChart } from '@/components/charts/IncomeDonutChart';
 
 export default function IncomePage() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [chartData, setChartData] = useState<Array<{ category: string; total: number }>>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     amount: '',
@@ -30,6 +33,7 @@ export default function IncomePage() {
 
   useEffect(() => {
     loadTransactions();
+    loadChartData();
   }, []);
 
   const loadTransactions = async () => {
@@ -40,6 +44,17 @@ export default function IncomePage() {
       console.error('Error loading transactions:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadChartData = async () => {
+    try {
+      const response = await transactionService.getCategoryProportions('income');
+      console.log('Chart data response:', response);
+      setChartData(response.data || []);
+    } catch (error) {
+      console.error('Error loading chart data:', error);
+      setChartData([]);
     }
   };
 
@@ -61,6 +76,7 @@ export default function IncomePage() {
       });
       setFormData({ amount: '', category: '', note: '', date: format(new Date(), 'yyyy-MM-dd') });
       loadTransactions();
+      loadChartData();
     } catch (error) {
       console.error('Error creating transaction:', error);
       alert('Failed to add income');
@@ -74,6 +90,7 @@ export default function IncomePage() {
     try {
       await transactionService.deleteTransaction(deleteId);
       loadTransactions();
+      loadChartData();
     } catch (error) {
       console.error('Error deleting transaction:', error);
     } finally {
@@ -98,6 +115,40 @@ export default function IncomePage() {
         <h1 className="text-3xl font-bold text-gray-900">Income</h1>
         <p className="text-gray-500 mt-1">Manage your income sources</p>
       </div>
+
+      {/* Income Source Distribution Chart */}
+      <Card className="mb-6">
+        <CardContent>
+          <h2 className="text-lg font-semibold mb-2">Income Source Distribution</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            See how diversified your income sources are. Click on a segment to filter transactions below.
+          </p>
+          {chartData.length > 0 ? (
+            <IncomeDonutChart
+              data={chartData}
+              onCategoryClick={setSelectedCategory}
+              selectedCategory={selectedCategory}
+            />
+          ) : (
+            <div className="text-center py-12 text-gray-500 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+              No income data available. Add income transactions to see the distribution.
+            </div>
+          )}
+          {selectedCategory && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+              <p className="text-sm text-blue-900">
+                Showing transactions for: <span className="font-semibold">{selectedCategory}</span>
+              </p>
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                Clear filter
+              </button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Add Income Form */}
       <Card className="mb-6">
@@ -154,7 +205,10 @@ export default function IncomePage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {transactions.map((tx) => (
+              {(selectedCategory
+                ? transactions.filter((tx) => tx.category === selectedCategory)
+                : transactions
+              ).map((tx) => (
                 <div
                   key={tx.id}
                   className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"

@@ -36,6 +36,7 @@ export interface Transaction {
   category: string;
   note?: string;
   date: string;
+  receipt_url?: string;
   created_at: string;
 }
 
