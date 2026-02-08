@@ -1,16 +1,18 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Literal, Optional
 from datetime import datetime
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from .models import TransactionType
 
 
 class TransactionBase(BaseModel):
     amount: Decimal
-    type: Literal["income", "expense"]
+    type: TransactionType
     category: str
-    note: Optional[str] = None
+    note: str | None = None
     date: datetime
-    receipt_url: Optional[str] = None
+    receipt_url: str | None = None
 
 
 class TransactionCreate(TransactionBase):
@@ -23,13 +25,26 @@ class TransactionResponse(TransactionBase):
     created_at: datetime
 
 
-class ReceiptAnalysis(BaseModel):
-    amount: float = Field(description="The total grand amount shown on the receipt")
+class ReceiptItem(BaseModel):
+    item_name: str = Field(
+        description="The name of the item or group of items (e.g., 'Maggi & Toothpaste')"
+    )
+    amount: float = Field(
+        description="The cost associated with this specific item or category group"
+    )
+    category: str = Field(description="The category that best fits this item")
+    note: str | None = Field(
+        default=None, description="Brief description of what is included in this amount"
+    )
+
+
+class MultiReceiptAnalysis(BaseModel):
+    items: list[ReceiptItem] = Field(
+        description="List of categorized expenses found in the receipt"
+    )
     date: str = Field(description="The date of the transaction in YYYY-MM-DD format")
-    category: str = Field(description="The category that best fits this receipt")
-    note: Optional[str] = Field(
-        default=None,
-        description="Any additional notes or details from the receipt (optional)",
+    total_amount_on_receipt: float = Field(
+        description="The grand total shown on the receipt for verification"
     )
 
 

@@ -1,32 +1,37 @@
-from fastapi import APIRouter, Depends, Response, Request, HTTPException, status
-from fastapi.responses import RedirectResponse
+import secrets
+import string
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
+
 import httpx
-from sqlalchemy.orm import Session
-from app.core.database import get_db
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
+from sqlalchemy import delete, select
+
 from app.core.config import settings
+from app.core.database import DBSession
+from app.core.http_client import get_http_client
+from app.core.security import (
+    create_access_token,
+    decode_token,
+    hash_password,
+    verify_google_token,
+    verify_password,
+)
+from app.modules.users.models import User
+from app.modules.users.schemas import UserResponse
+
+from .email_service import send_otp_email
+from .helpers import authenticate_user_via_google
+from .models import EmailOTP
 from .schemas import (
-    TokenResponse,
     LoginRequest,
-    SignupRequest,
     OTPRequest,
     OTPVerifyRequest,
+    TokenResponse,
 )
-from .service import AuthService
-from .email_service import send_otp_email
-from app.modules.users.service import UserService
-from app.modules.users.repository import UserRepository
 
-router = APIRouter()
-
-
-def get_auth_service(db: Session = Depends(get_db)) -> AuthService:
-    return AuthService(db)
-
-
-def get_user_service(db: Session = Depends(get_db)) -> UserService:
-    repo = UserRepository(db)
-    return UserService(repo)
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @router.get("/google")
@@ -46,54 +51,53 @@ def google_login():
 
 
 @router.get("/google/callback")
-def google_callback(code: str, db: Session = Depends(get_db)):
+async def google_callback(
+    code: str, db: DBSession, client: httpx.AsyncClient = Depends(get_http_client)
+):
     """Handle Google OAuth callback"""
     try:
-        auth_service = get_auth_service(db)
+        token_response = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": f"{settings.BACKEND_URL}/auth/google/callback",
+            },
+        )
 
-        with httpx.Client() as client:
-            token_response = client.post(
-                "https://oauth2.googleapis.com/token",
-                data={
-                    "client_id": settings.GOOGLE_CLIENT_ID,
-                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                    "code": code,
-                    "grant_type": "authorization_code",
-                    "redirect_uri": f"{settings.BACKEND_URL}/auth/google/callback",
-                },
-            )
+        if token_response.status_code != 200:
+            error_url = f"{settings.FRONTEND_URL}/login?error=token_exchange_failed"
+            return RedirectResponse(url=error_url)
 
-            if token_response.status_code != 200:
-                error_url = f"{settings.FRONTEND_URL}/login?error=token_exchange_failed"
-                return RedirectResponse(url=error_url)
+        tokens = token_response.json()
+        access_token = tokens.get("access_token")
 
-            tokens = token_response.json()
-            access_token = tokens.get("access_token")
+        user_response = await client.get(
+            f"https://www.googleapis.com/oauth2/v1/userinfo?access_token={access_token}"
+        )
 
-            user_response = client.get(
-                f"https://www.googleapis.com/oauth2/v1/userinfo?access_token={access_token}"
-            )
+        if user_response.status_code != 200:
+            error_url = f"{settings.FRONTEND_URL}/login?error=user_info_failed"
+            return RedirectResponse(url=error_url)
 
-            if user_response.status_code != 200:
-                error_url = f"{settings.FRONTEND_URL}/login?error=user_info_failed"
-                return RedirectResponse(url=error_url)
+        user_info = user_response.json()
 
-            user_info = user_response.json()
+        token_data = await authenticate_user_via_google(db, user_info)
 
-            token_data = auth_service.authenticate_with_google(user_info)
+        redirect_url = f"{settings.FRONTEND_URL}/dashboard"
 
-            redirect_url = f"{settings.FRONTEND_URL}/dashboard"
-
-            response = RedirectResponse(url=redirect_url)
-            response.set_cookie(
-                key="auth_token",
-                value=token_data.access_token,
-                max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-                httponly=True,
-                secure=False,
-                samesite="lax",
-            )
-            return response
+        response = RedirectResponse(url=redirect_url)
+        response.set_cookie(
+            key="auth_token",
+            value=token_data.access_token,
+            max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+        )
+        return response
 
     except Exception:
         error_url = f"{settings.FRONTEND_URL}/login?error=auth_failed"
@@ -101,29 +105,44 @@ def google_callback(code: str, db: Session = Depends(get_db)):
 
 
 @router.post("/google/token", response_model=TokenResponse)
-def google_token_auth(
-    google_token: str, auth_service: AuthService = Depends(get_auth_service)
+async def google_token_auth(
+    google_token: str,
+    db: DBSession,
+    client: httpx.AsyncClient = Depends(get_http_client),
 ):
     """Authenticate with Google token (for frontend use)"""
-    user_info = auth_service.verify_google_token(google_token)
-    return auth_service.authenticate_with_google(user_info)
+    user_info = await verify_google_token(google_token, client)
+    return await authenticate_user_via_google(db, user_info)
 
 
 @router.post("/request-otp")
-def request_otp(
+async def request_otp(
     otp_request: OTPRequest,
-    user_service: UserService = Depends(get_user_service),
-    auth_service: AuthService = Depends(get_auth_service),
+    db: DBSession,
 ):
     """Request OTP for email verification before signup"""
-    existing_user = user_service.get_user_by_email(otp_request.email)
+    stmt = select(User).where(User.email == otp_request.email)
+    result = await db.execute(stmt)
+    existing_user = result.scalar_one_or_none()
+
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User with this email already exists",
         )
 
-    otp_code = auth_service.create_otp(otp_request.email)
+    # Generate OTP
+    otp_code = "".join(secrets.choice(string.digits) for _ in range(6))
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+    # Save OTP
+    email_otp = EmailOTP(
+        email=otp_request.email,
+        otp_code=otp_code,
+        expires_at=expires_at,
+    )
+    db.add(email_otp)
+    await db.commit()
 
     email_sent = send_otp_email(
         to_email=otp_request.email, otp_code=otp_code, name=otp_request.name
@@ -139,23 +158,56 @@ def request_otp(
 
 
 @router.post("/signup", response_model=TokenResponse)
-def signup_with_email(
+async def signup_with_email(
     signup_data: OTPVerifyRequest,
     response: Response,
-    auth_service: AuthService = Depends(get_auth_service),
+    db: DBSession,
 ):
     """Sign up with email and password after OTP verification"""
-    auth_service.verify_otp(signup_data.email, signup_data.otp_code)
+    # Verify OTP
+    stmt = (
+        select(EmailOTP)
+        .where(
+            EmailOTP.email == signup_data.email,
+            EmailOTP.otp_code == signup_data.otp_code,
+            EmailOTP.expires_at > datetime.now(timezone.utc),
+        )
+        .order_by(EmailOTP.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    otp_record = result.scalars().first()
 
-    signup_request = SignupRequest(
-        email=signup_data.email, name=signup_data.name, password=signup_data.password
+    if not otp_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired OTP",
+        )
+
+    # Create User and clean up OTPs atomically
+    new_user = User(
+        email=signup_data.email,
+        name=signup_data.name,
+        password_hash=hash_password(signup_data.password),
     )
 
-    token_data = auth_service.signup_with_email(signup_request)
+    # Clean up OTPs
+    del_stmt = delete(EmailOTP).where(EmailOTP.email == signup_data.email)
+    await db.execute(del_stmt)
+    db.add(new_user)
+
+    await db.commit()
+    await db.refresh(new_user)
+
+    access_token = create_access_token(data={"sub": new_user.id})
+    token_data = TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse.model_validate(new_user),
+    )
 
     response.set_cookie(
         key="auth_token",
-        value=token_data.access_token,
+        value=access_token,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
         secure=False,
@@ -165,22 +217,46 @@ def signup_with_email(
 
 
 @router.post("/login", response_model=TokenResponse)
-def login_with_email(
+async def login_with_email(
     login_data: LoginRequest,
     response: Response,
-    auth_service: AuthService = Depends(get_auth_service),
+    db: DBSession,
 ):
     """Login with email and password"""
-    token_data = auth_service.login_with_email(login_data)
+    stmt = select(User).where(User.email == login_data.email)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if (
+        not user
+        or not user.password_hash
+        or not verify_password(login_data.password, user.password_hash)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
 
     if login_data.remember_me:
+        # Increase expiration for remember me
+        access_token = create_access_token(
+            data={"sub": user.id},
+            expires_delta=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        )
         cookie_max_age = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     else:
+        access_token = create_access_token(data={"sub": user.id})
         cookie_max_age = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
+    token_data = TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse.model_validate(user),
+    )
 
     response.set_cookie(
         key="auth_token",
-        value=token_data.access_token,
+        value=access_token,
         max_age=cookie_max_age,
         httponly=True,
         secure=False,
@@ -197,25 +273,26 @@ def logout(response: Response):
 
 
 @router.get("/status")
-def auth_status(
-    request: Request, user_service: UserService = Depends(get_user_service)
-):
+async def auth_status(request: Request, db: DBSession):
     """Check authentication status without throwing 401"""
     token = request.cookies.get("auth_token")
     if not token:
         return {"authenticated": False, "user": None}
 
     try:
-        from app.core.security import decode_token
-
         user_id = decode_token(token)
 
         if user_id:
-            user = user_service.get_user_by_id(user_id)
+            user = await db.get(User, user_id)
             if user:
                 return {
                     "authenticated": True,
-                    "user": user_service.get_user_response(user),
+                    "user": {
+                        "id": user.id,
+                        "email": user.email,
+                        "name": user.name,
+                        "picture": user.picture,
+                    },
                 }
 
         return {"authenticated": False, "user": None}

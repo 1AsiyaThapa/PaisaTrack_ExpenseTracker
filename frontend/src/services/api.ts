@@ -1,4 +1,4 @@
-import { Transaction, User, Budget, RecurringTransaction, Category, CategoryCreate } from '../types';
+import { Transaction, User, Budget, RecurringTransaction, Category, MultiReceiptAnalysis } from '../types';
 import { STORAGE_KEYS } from '../utils/constants';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
@@ -8,7 +8,7 @@ async function apiRequest<T>(
   options?: RequestInit
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
-  
+
   let response: Response;
   try {
     response = await fetch(url, {
@@ -32,20 +32,20 @@ async function apiRequest<T>(
       if (typeof window !== 'undefined') {
         localStorage.removeItem(STORAGE_KEYS.USER_DATA);
         localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
-        
+
         if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
           window.location.href = '/login';
         }
       }
       throw new Error('Authentication required. Please log in again.');
     }
-    
+
     let errorMessage = `API Error: ${response.status} ${response.statusText}`;
     try {
       const errorData = await response.json();
       if (errorData.detail) {
         if (Array.isArray(errorData.detail)) {
-          errorMessage = errorData.detail.map((err: any) => 
+          errorMessage = errorData.detail.map((err: { loc?: string[]; msg: string }) =>
             `${err.loc?.join('.')}: ${err.msg}`
           ).join(', ');
         } else {
@@ -56,7 +56,7 @@ async function apiRequest<T>(
       }
     } catch {
     }
-    
+
     throw new Error(errorMessage);
   }
 
@@ -105,7 +105,7 @@ export const authService = {
   async getCurrentUser(): Promise<User | null> {
     try {
       return await apiRequest<User>('/users/me');
-    } catch (error) {
+    } catch {
       return null;
     }
   },
@@ -123,7 +123,7 @@ export const authService = {
         return await response.json();
       }
       return null;
-    } catch (error) {
+    } catch {
       return null;
     }
   },
@@ -158,18 +158,10 @@ export const transactionService = {
     });
   },
 
-  async scanReceipt(file: File): Promise<{
-    receipt_url: string;
-    analysis: {
-      amount: number;
-      date: string;
-      category: string;
-      note?: string | null;
-    };
-  }> {
+  async scanReceipt(file: File): Promise<MultiReceiptAnalysis> {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const url = `${BASE_URL}/transactions/scan`;
     const response = await fetch(url, {
       method: 'POST',
@@ -182,14 +174,14 @@ export const transactionService = {
         if (typeof window !== 'undefined') {
           localStorage.removeItem(STORAGE_KEYS.USER_DATA);
           localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
-          
+
           if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
             window.location.href = '/login';
           }
         }
         throw new Error('Authentication required. Please log in again.');
       }
-      
+
       let errorMessage = `API Error: ${response.status} ${response.statusText}`;
       try {
         const errorData = await response.json();
@@ -198,7 +190,7 @@ export const transactionService = {
         }
       } catch {
       }
-      
+
       throw new Error(errorMessage);
     }
 

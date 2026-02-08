@@ -1,22 +1,21 @@
 'use client';
 
 import { transactionService } from '@/services/api';
-import { Transaction } from '@/types';
+import { Transaction, ReceiptItem } from '@/types';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
-import { CreditCard, Upload, Sparkles, X, CheckCircle2 } from 'lucide-react';
+import { Upload, Sparkles, X, CheckCircle2 } from 'lucide-react';
+import Image from 'next/image';
 
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { CategorySelect } from '@/components/ui/CategorySelect';
 import { ExpenseBarChart } from '@/components/charts/ExpenseBarChart';
 
 export default function ExpensePage() {
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [chartData, setChartData] = useState<Array<{ category: string; total: number }>>([]);
@@ -36,6 +35,19 @@ export default function ExpensePage() {
 
   // Delete Confirmation State
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Multi-Item Receipt State
+  const [suggestedTransactions, setSuggestedTransactions] = useState<ReceiptItem[]>([]);
+  const [receiptDate, setReceiptDate] = useState<string>('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  const updateSuggestedItem = (index: number, field: keyof ReceiptItem, value: string | number) => {
+    setSuggestedTransactions((prev) => {
+      const newItems = [...prev];
+      newItems[index] = { ...newItems[index], [field]: value };
+      return newItems;
+    });
+  };
 
   useEffect(() => {
     loadTransactions();
@@ -67,10 +79,10 @@ export default function ExpensePage() {
       setScanError('Please select an image file');
       return;
     }
-    
+
     setSelectedFile(file);
     setScanError(null);
-    
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreviewUrl(reader.result as string);
@@ -87,20 +99,17 @@ export default function ExpensePage() {
 
   const handleScan = async () => {
     if (!selectedFile) return;
-    
+
     setScanning(true);
     setScanError(null);
-    
+
     try {
       const result = await transactionService.scanReceipt(selectedFile);
       setReceiptUrl(result.receipt_url);
-      
-      setFormData({
-        amount: result.analysis.amount?.toString() || '',
-        category: result.analysis.category || '',
-        date: result.analysis.date || format(new Date(), 'yyyy-MM-dd'),
-        note: result.analysis.note || '',
-      });
+      setReceiptDate(result.date);
+
+      // Instead of setting one form, we set the list of suggestions
+      setSuggestedTransactions(result.suggested_transactions);
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'Failed to scan receipt');
     } finally {
@@ -148,6 +157,37 @@ export default function ExpensePage() {
     }
   };
 
+  const handleSaveAllSuggestions = async () => {
+    setSubmitting(true);
+    try {
+      // Loop through all suggestions and create transactions
+      await Promise.all(
+        suggestedTransactions.map(item =>
+          transactionService.createTransaction({
+            amount: item.amount,
+            type: 'expense',
+            category: item.category,
+            note: item.item_name + (item.note ? ` (${item.note})` : ''),
+            date: new Date(receiptDate).toISOString(),
+            receipt_url: receiptUrl || undefined,
+          })
+        )
+      );
+
+      // Clear everything on success
+      setSuggestedTransactions([]);
+      handleResetReceipt();
+      loadTransactions();
+      loadChartData();
+      alert('All items saved successfully!');
+    } catch (error) {
+      console.error('Error saving suggestions:', error);
+      alert('Failed to save some items');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
@@ -188,7 +228,7 @@ export default function ExpensePage() {
             </div>
             Receipt Scanner
           </h2>
-          
+
           {!previewUrl ? (
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-red-400 transition-colors bg-gray-50/50">
               <button
@@ -207,9 +247,11 @@ export default function ExpensePage() {
           ) : (
             <div className="space-y-4">
               <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-                <img
+                <Image
                   src={previewUrl}
                   alt="Receipt preview"
+                  width={500}
+                  height={500}
                   className="w-full h-auto max-h-64 object-contain"
                 />
                 {receiptUrl && (
@@ -262,6 +304,117 @@ export default function ExpensePage() {
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                   <p className="text-sm text-red-800">{scanError}</p>
                 </div>
+              )}
+            </div>
+          )}
+
+          {suggestedTransactions.length > 0 && (
+            <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-top-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-md font-bold text-gray-800">Review Detected Items</h3>
+                <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-500">
+                  Date: {receiptDate}
+                </span>
+              </div>
+
+              <div className="grid gap-3">
+                {suggestedTransactions.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className={`bg-white border border-gray-200 rounded-xl shadow-sm transition-all ${editingIndex === idx ? 'relative z-30 ring-2 ring-blue-100' : 'relative z-10'
+                      }`}
+                  >
+                    {editingIndex === idx ? (
+                      /* --- EDIT MODE --- */
+                      <div className="p-4 bg-blue-50/50 space-y-4 rounded-xl">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Input
+                            label="Item Name"
+                            value={item.item_name}
+                            onChange={(e) => updateSuggestedItem(idx, 'item_name', e.target.value)}
+                          />
+                          <Input
+                            label="Amount"
+                            type="number"
+                            value={item.amount}
+                            onChange={(e) => updateSuggestedItem(idx, 'amount', Number(e.target.value))}
+                          />
+                          <CategorySelect
+                            type="expense"
+                            value={item.category}
+                            onChange={(val) => updateSuggestedItem(idx, 'category', val)}
+                          />
+                          <Input
+                            label="Note (Optional)"
+                            value={item.note || ''}
+                            onChange={(e) => updateSuggestedItem(idx, 'note', e.target.value)}
+                            placeholder="Add a note"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingIndex(null)}>
+                            Done
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* --- DISPLAY MODE --- */
+                      <div className="p-4 flex items-center justify-between group">
+                        <div className="flex items-center gap-4">
+                          <div className="p-2 bg-purple-100 rounded-lg text-purple-700 text-xs font-bold min-w-[80px] text-center">
+                            {item.category}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{item.item_name}</p>
+                            {item.note && <p className="text-xs text-gray-500">{item.note}</p>}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                          <div className="text-right">
+                            <p className="font-bold text-red-600 text-lg">₹{item.amount}</p>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => setEditingIndex(idx)}
+                              className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => setSuggestedTransactions((prev) => prev.filter((_, i) => i !== idx))}
+                              className="text-xs text-gray-400 hover:text-red-500 underline"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700 shadow-md"
+                  onClick={handleSaveAllSuggestions}
+                  disabled={submitting || editingIndex !== null}
+                >
+                  {submitting ? 'Saving...' : `Confirm & Save ${suggestedTransactions.length} Expenses`}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setSuggestedTransactions([])}
+                  className="text-gray-500"
+                >
+                  Discard All
+                </Button>
+              </div>
+              {editingIndex !== null && (
+                <p className="text-xs text-amber-600 text-center">
+                  Finish editing the item above to confirm all.
+                </p>
               )}
             </div>
           )}

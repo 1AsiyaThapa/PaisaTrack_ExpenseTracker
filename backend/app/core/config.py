@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -6,11 +7,10 @@ load_dotenv()
 
 class Settings:
     PROJECT_NAME: str = "PaisaTrack API"
-    VERSION: str = "1.0.0"
 
-    DATABASE_URL: str = os.getenv("DATABASE_URL")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
-    SECRET_KEY: str = os.getenv("SECRET_KEY")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
@@ -25,8 +25,13 @@ class Settings:
     GMAIL_APP_PASSWORD: str = os.getenv("GMAIL_APP_PASSWORD", "")
 
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL_ID: str = "gemini-2.5-flash"
 
     UPLOAD_DIR: str = "uploads/receipts"
+
+    @property
+    def ASYNC_DATABASE_URL(self) -> str:
+        return self.DATABASE_URL.replace("pymysql", "aiomysql")
 
 
 settings = Settings()

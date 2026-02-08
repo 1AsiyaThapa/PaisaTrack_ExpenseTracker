@@ -4,6 +4,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 
 interface IncomeDonutChartProps {
   data: Array<{ category: string; total: number }>;
+  onCategoryClick?: (category: string | null) => void;
+  selectedCategory?: string | null;
 }
 
 // Green and Teal shades for income
@@ -19,12 +21,24 @@ const INCOME_COLORS = [
   '#A7F3D0', // Emerald-200
 ];
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      category: string;
+      total: number;
+      percentage: number;
+    };
+    name: string;
+  }>;
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0];
     const total = data.payload.total;
     const percentage = data.payload.percentage || 0;
-    
+
     return (
       <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
         <p className="text-sm font-semibold text-gray-900 mb-1">{data.name}</p>
@@ -37,7 +51,15 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+const CustomLabel = (props: unknown) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props as {
+    cx: number;
+    cy: number;
+    midAngle: number;
+    innerRadius: number;
+    outerRadius: number;
+    percent: number;
+  };
   const RADIAN = Math.PI / 180;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -51,9 +73,9 @@ const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: an
       x={x}
       y={y}
       fill="white"
-      textAnchor={x > cx ? 'start' : 'end'}
+      textAnchor="middle"
       dominantBaseline="central"
-      className="text-xs font-semibold"
+      className="text-xs font-bold"
     >
       {`${(percent * 100).toFixed(0)}%`}
     </text>
@@ -119,13 +141,13 @@ export function IncomeDonutChart({ data, onCategoryClick, selectedCategory }: In
           <Legend
             verticalAlign="bottom"
             height={36}
-            formatter={(value, entry: any) => (
+            formatter={(value) => (
               <span className="text-sm text-gray-600">{value}</span>
             )}
           />
         </PieChart>
       </ResponsiveContainer>
-      
+
       {/* Center Label */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="text-center">
