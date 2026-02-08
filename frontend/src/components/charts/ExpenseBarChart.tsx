@@ -17,18 +17,29 @@ const getExpenseColor = (index: number, total: number) => {
     '#FED7AA', // Orange-200
     '#FFEDD5', // Orange-100 (Lightest)
   ];
-  
+
   // Use darker colors for top expenses, lighter for bottom
   const colorIndex = Math.floor((index / total) * (colors.length - 1));
   return colors[colorIndex] || colors[colors.length - 1];
 };
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      category: string;
+      total: number;
+      percentage: number;
+    };
+  }>;
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const total = data.total;
     const percentage = data.percentage || 0;
-    
+
     return (
       <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
         <p className="text-sm font-semibold text-gray-900 mb-1">{data.category}</p>
@@ -95,7 +106,6 @@ export function ExpenseBarChart({ data }: ExpenseBarChartProps) {
         <Bar
           dataKey="value"
           radius={[0, 8, 8, 0]}
-          // @ts-ignore - Recharts Cell typing issue
         >
           {chartData.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={entry.color} />

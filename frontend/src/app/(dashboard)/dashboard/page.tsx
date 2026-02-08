@@ -5,7 +5,6 @@ import { transactionService } from '@/services/api';
 import { Transaction } from '@/types';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Wallet, CreditCard, PiggyBank } from 'lucide-react';
@@ -15,7 +14,6 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const router = useRouter();
   const [stats, setStats] = useState({
     total_income: 0,
     total_expenses: 0,
@@ -143,7 +141,7 @@ export default function Dashboard() {
         <CardContent className="p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-6">Financial Summary</h2>
           <p className="text-sm text-gray-500 mb-6">
-            Stacked bars show expenses by category. The green line shows your income. 
+            Stacked bars show expenses by category. The green line shows your income.
             The gap between them indicates your savings (or overspending).
           </p>
           <DashboardSummaryChart data={chartData} />

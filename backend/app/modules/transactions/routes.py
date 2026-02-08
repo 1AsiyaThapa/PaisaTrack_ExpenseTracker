@@ -1,142 +1,344 @@
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
-from sqlalchemy.orm import Session
-from app.core.database import get_db
-from app.core.security import get_current_user_id
+import uuid
+from decimal import Decimal
+from pathlib import Path
+from typing import cast
+
+from anyio.to_thread import run_sync
+from fastapi import APIRouter, HTTPException, Query, UploadFile, status
+from google import genai
+from google.genai import types
+from sqlalchemy import CursorResult, delete, desc, extract, func, select
+
+from app.core.config import settings
+from app.core.constants import DEFAULT_CATEGORY
+from app.core.database import DBSession
+from app.core.security import CurrentUserID
+from app.modules.categories.models import Category
+
+from .helpers import process_dashboard_summary
+from .models import Transaction, TransactionType
 from .schemas import (
+    IncomeExpenseComparisonResponse,
+    IncomeExpenseDataPoint,
+    MultiReceiptAnalysis,
     TransactionCreate,
     TransactionResponse,
-    IncomeExpenseComparisonResponse,
 )
-from .repository import TransactionRepository
-from .service import TransactionService
 
-router = APIRouter()
-
-
-def get_transaction_service(db: Session = Depends(get_db)) -> TransactionService:
-    repo = TransactionRepository(db)
-    return TransactionService(repo, db)
+router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
 @router.post(
     "/", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED
 )
-def create_transaction(
+async def create_transaction(
     data: TransactionCreate,
-    user_id: str = Depends(get_current_user_id),
-    service: TransactionService = Depends(get_transaction_service),
+    db: DBSession,
+    user_id: CurrentUserID,
 ):
-    transaction = service.create_user_transaction(user_id, data)
-    return service.get_transaction_response(transaction)
+    transaction = Transaction(user_id=user_id, **data.model_dump())
+    db.add(transaction)
+    await db.commit()
+    await db.refresh(transaction)
+    return transaction
 
 
-@router.get("/", response_model=List[TransactionResponse])
-def get_transactions(
-    type: Optional[str] = Query(
-        None, description="Filter by transaction type: 'income' or 'expense'"
+@router.get("/", response_model=list[TransactionResponse])
+async def get_transactions(
+    db: DBSession,
+    user_id: CurrentUserID,
+    type: TransactionType | None = Query(
+        None, description="Filter by transaction type"
     ),
-    user_id: str = Depends(get_current_user_id),
-    service: TransactionService = Depends(get_transaction_service),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
 ):
-    transactions = service.get_user_transactions(user_id, type)
-    return [service.get_transaction_response(t) for t in transactions]
+    stmt = select(Transaction).where(Transaction.user_id == user_id)
+    if type:
+        stmt = stmt.where(Transaction.type == type)
+    stmt = stmt.order_by(Transaction.date.desc()).limit(limit).offset(offset)
+
+    result = await db.execute(stmt)
+    return result.scalars().all()
 
 
 @router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_transaction(
+async def delete_transaction(
     transaction_id: str,
-    user_id: str = Depends(get_current_user_id),
-    service: TransactionService = Depends(get_transaction_service),
+    db: DBSession,
+    user_id: CurrentUserID,
 ):
-    transaction = service.get_transaction_by_id(transaction_id)
-    if not transaction:
+    stmt = delete(Transaction).where(
+        Transaction.id == transaction_id, Transaction.user_id == user_id
+    )
+    result = cast(CursorResult, await db.execute(stmt))
+    await db.commit()
+
+    if result.rowcount == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Transaction not found",
         )
-
-    if transaction.user_id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to delete this transaction",
-        )
-
-    service.delete_transaction(transaction_id)
     return None
 
 
 @router.get("/stats")
-def get_dashboard_stats(
-    user_id: str = Depends(get_current_user_id),
-    service: TransactionService = Depends(get_transaction_service),
+async def get_dashboard_stats(
+    db: DBSession,
+    user_id: CurrentUserID,
 ):
-    return service.get_user_stats(user_id)
+    # Total Income
+    income_stmt = select(func.sum(Transaction.amount)).where(
+        Transaction.user_id == user_id, Transaction.type == TransactionType.INCOME
+    )
+    # Total Expense
+    expense_stmt = select(func.sum(Transaction.amount)).where(
+        Transaction.user_id == user_id, Transaction.type == TransactionType.EXPENSE
+    )
+
+    total_income_res = await db.execute(income_stmt)
+    total_expense_res = await db.execute(expense_stmt)
+
+    total_income = total_income_res.scalar() or Decimal("0")
+    total_expense = total_expense_res.scalar() or Decimal("0")
+
+    # Recent Transactions
+    recent_stmt = (
+        select(Transaction)
+        .where(Transaction.user_id == user_id)
+        .order_by(Transaction.date.desc())
+        .limit(5)
+    )
+    recent_res = await db.execute(recent_stmt)
+    recent = recent_res.scalars().all()
+
+    return {
+        "total_income": float(total_income),
+        "total_expenses": float(total_expense),
+        "balance": float(total_income - total_expense),
+        "recent_transactions": recent,
+    }
 
 
 @router.get(
     "/income-expense-comparison", response_model=IncomeExpenseComparisonResponse
 )
-def get_income_expense_comparison(
+async def get_income_expense_comparison(
+    db: DBSession,
+    user_id: CurrentUserID,
     months: int = Query(
         6, ge=1, le=12, description="Number of months to retrieve (1-12)"
     ),
-    user_id: str = Depends(get_current_user_id),
-    service: TransactionService = Depends(get_transaction_service),
 ):
-    data = service.get_income_expense_comparison(user_id, months)
-    return IncomeExpenseComparisonResponse(data=data)
+    def get_stmt(tx_type: TransactionType):
+        return (
+            select(
+                extract("year", Transaction.date).label("year"),
+                extract("month", Transaction.date).label("month"),
+                func.sum(Transaction.amount).label("total"),
+            )
+            .where(Transaction.user_id == user_id, Transaction.type == tx_type)
+            .group_by(
+                extract("year", Transaction.date), extract("month", Transaction.date)
+            )
+            .order_by(
+                extract("year", Transaction.date).desc(),
+                extract("month", Transaction.date).desc(),
+            )
+            .limit(months)
+        )
+
+    income_res = await db.execute(get_stmt(TransactionType.INCOME))
+    expense_res = await db.execute(get_stmt(TransactionType.EXPENSE))
+
+    income_data = income_res.all()
+    expense_data = expense_res.all()
+
+    income_dict = {
+        (int(row.year), int(row.month)): float(row.total) for row in income_data
+    }
+    expense_dict = {
+        (int(row.year), int(row.month)): float(row.total) for row in expense_data
+    }
+
+    all_months = sorted(
+        set(list(income_dict.keys()) + list(expense_dict.keys())), reverse=True
+    )[:months]
+    all_months.reverse()
+
+    result = []
+    month_names = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
+
+    for year, month in all_months:
+        month_label = f"{month_names[month - 1]} {year}"
+        result.append(
+            IncomeExpenseDataPoint(
+                month=month_label,
+                income=income_dict.get((year, month), 0.0),
+                expense=expense_dict.get((year, month), 0.0),
+            )
+        )
+
+    return IncomeExpenseComparisonResponse(data=result)
 
 
 @router.get("/dashboard-summary")
-def get_dashboard_summary(
+async def get_dashboard_summary(
+    db: DBSession,
+    user_id: CurrentUserID,
     months: int = Query(
         6, ge=1, le=12, description="Number of months to retrieve (1-12)"
     ),
-    user_id: str = Depends(get_current_user_id),
-    service: TransactionService = Depends(get_transaction_service),
 ):
-    """Get detailed summary for dashboard: stacked expenses by category + income line"""
-    data = service.get_dashboard_summary(user_id, months)
-    return {"data": data}
+    stmt = (
+        select(
+            extract("year", Transaction.date).label("year"),
+            extract("month", Transaction.date).label("month"),
+            Transaction.category,
+            Transaction.type,
+            func.sum(Transaction.amount).label("total"),
+        )
+        .where(Transaction.user_id == user_id)
+        .group_by(
+            extract("year", Transaction.date),
+            extract("month", Transaction.date),
+            Transaction.category,
+            Transaction.type,
+        )
+        .order_by(
+            desc(extract("year", Transaction.date)),
+            desc(extract("month", Transaction.date)),
+        )
+    )
+
+    result_proxy = await db.execute(stmt)
+    raw_data = result_proxy.all()
+
+    result = process_dashboard_summary(raw_data, months)
+
+    return {"data": result}
 
 
 @router.get("/category-proportions")
-def get_category_proportions(
-    type: str = Query(..., description="Transaction type: 'income' or 'expense'"),
-    user_id: str = Depends(get_current_user_id),
-    service: TransactionService = Depends(get_transaction_service),
+async def get_category_proportions(
+    db: DBSession,
+    user_id: CurrentUserID,
+    type: TransactionType = Query(..., description="Transaction type"),
 ):
-    """Get category proportions for income or expense"""
-    if type not in ["income", "expense"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Type must be 'income' or 'expense'",
-        )
-    data = service.get_category_proportions(user_id, type)
+
+    stmt = (
+        select(Transaction.category, func.sum(Transaction.amount).label("total"))
+        .where(Transaction.user_id == user_id, Transaction.type == type)
+        .group_by(Transaction.category)
+        .order_by(desc("total"))
+    )
+
+    result_proxy = await db.execute(stmt)
+    raw_data = result_proxy.all()
+
+    data = []
+    for row in raw_data:
+        data.append({"category": str(row.category), "total": float(row.total)})
+
     return {"data": data}
 
 
 @router.post("/scan")
-def scan_receipt(
-    file: UploadFile = File(...),
-    user_id: str = Depends(get_current_user_id),
-    service: TransactionService = Depends(get_transaction_service),
+async def scan_receipt(
+    file: UploadFile,
+    db: DBSession,
+    user_id: CurrentUserID,
 ):
-    """Scan receipt image using AI and return extracted data"""
-    if not file.content_type or not file.content_type.startswith("image/"):
+    if (
+        not file.filename
+        or not file.content_type
+        or not file.content_type.startswith("image/")
+    ):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="File must be an image"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an image with a valid filename",
         )
 
-    file_url = service.save_receipt_file(file)
+    # 1. Save File
+    upload_path = Path(settings.UPLOAD_DIR)
+    upload_path.mkdir(parents=True, exist_ok=True)
 
-    file.file.seek(0)
-    file_bytes = file.file.read()
+    file_ext = Path(cast(str, file.filename)).suffix
+    file_name = f"{uuid.uuid4()}{file_ext}"
+    full_path = upload_path / file_name
+
+    image_data = await file.read()
+    with full_path.open("wb") as buffer:
+        buffer.write(image_data)
+
+    file_url = f"/uploads/receipts/{file_name}"
+
+    # 2. Get User Categories for context
+    stmt = select(Category.name).where(
+        Category.user_id == user_id, Category.type == TransactionType.EXPENSE
+    )
+    result = await db.execute(stmt)
+    cat_names = list(result.scalars().all())
+
+    if DEFAULT_CATEGORY not in cat_names:
+        cat_names.append(DEFAULT_CATEGORY)
+
+    # 3. AI Analysis
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
+    prompt = f"""
+    Analyze this receipt image and break it down into logical expense items based on their categories.
+    
+    Rules:
+    1. Identify items on the receipt and group them by these categories: {cat_names}.
+    2. If multiple items belong to the same category (e.g., Maggi and Milk both in 'Groceries'), you can group them into one line item.
+    3. For each item/group, extract the specific amount.
+    4. The sum of all items must equal the grand total on the receipt.
+    5. Use '{DEFAULT_CATEGORY}' if an item doesn't fit anywhere else.
+    6. Extract the transaction date.
+
+    Return the data structured as a list of items, each with item_name, amount, category, and note.
+    """
 
     try:
-        analysis = service.scan_receipt(user_id, file_bytes, file.content_type)
-        return {"receipt_url": file_url, "analysis": analysis.model_dump()}
+        image_part = types.Part.from_bytes(data=image_data, mime_type=file.content_type)
+
+        def _generate_receipt_analysis():
+            return client.models.generate_content(
+                model=settings.GEMINI_MODEL_ID,
+                contents=[image_part, prompt],
+                config={
+                    "response_mime_type": "application/json",
+                    "response_json_schema": MultiReceiptAnalysis.model_json_schema(),
+                },
+            )
+
+        response = await run_sync(_generate_receipt_analysis)
+
+        if not response.text:
+            raise ValueError("Empty response from AI")
+
+        analysis = MultiReceiptAnalysis.model_validate_json(response.text)
+        return {
+            "receipt_url": file_url,
+            "date": analysis.date,
+            "total_on_receipt": analysis.total_amount_on_receipt,
+            "suggested_transactions": analysis.items,
+        }
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

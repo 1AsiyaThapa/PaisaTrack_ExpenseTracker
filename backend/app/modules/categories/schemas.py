@@ -1,6 +1,8 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Literal
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
+
+from app.modules.transactions.models import TransactionType
 
 
 class ResponseBase(BaseModel):
@@ -9,7 +11,7 @@ class ResponseBase(BaseModel):
 
 class CategoryCreate(BaseModel):
     name: str
-    type: Literal["income", "expense"]
+    type: TransactionType
     icon: str
     color: str | None = None
 
@@ -17,7 +19,7 @@ class CategoryCreate(BaseModel):
 class CategoryResponse(ResponseBase):
     id: str
     name: str
-    type: str
+    type: TransactionType
     icon: str
     color: str | None = None
     created_at: datetime

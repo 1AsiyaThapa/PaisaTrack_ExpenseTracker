@@ -17,21 +17,33 @@ interface DashboardSummaryChartProps {
   data: Array<Record<string, string | number>>;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: Record<string, number | string>;
+    dataKey: string | number;
+    name: string;
+    value: number;
+    color: string;
+  }>;
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
-    const income = data.Income || 0;
-    
+    const income = Number(data.Income) || 0;
+
     // Calculate total expenses from all category values
     const expenseCategories: Array<{ name: string; value: number; color: string }> = [];
     let totalExpenses = 0;
-    
-    payload.forEach((entry: any) => {
-      if (entry.dataKey !== 'Income' && entry.value > 0) {
+
+    payload.forEach((entry) => {
+      if (entry.dataKey !== 'Income' && typeof entry.value === 'number' && entry.value > 0) {
         expenseCategories.push({
-          name: entry.name,
+          name: entry.name as string,
           value: entry.value,
-          color: entry.color,
+          color: entry.color as string,
         });
         totalExpenses += entry.value;
       }
@@ -52,7 +64,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
               ₹{Number(income).toLocaleString()}
             </span>
           </div>
-          
+
           {expenseCategories.length > 0 && (
             <>
               <div className="space-y-1.5">
@@ -71,7 +83,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                   </div>
                 ))}
               </div>
-              
+
               <div className="pt-2 border-t border-gray-100 mt-2">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-sm font-medium text-gray-700">Total Expenses:</span>
@@ -95,12 +107,20 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const CustomLegend = ({ payload }: any) => {
+interface CustomLegendProps {
+  payload?: Array<{
+    value: string;
+    color: string;
+    dataKey: string | number;
+  }>;
+}
+
+const CustomLegend = ({ payload }: CustomLegendProps) => {
   if (!payload) return null;
 
   // Separate Income (line) from expense categories (bars)
-  const incomeEntry = payload.find((entry: any) => entry.dataKey === 'Income');
-  const expenseEntries = payload.filter((entry: any) => entry.dataKey !== 'Income');
+  const incomeEntry = payload.find((entry) => entry.dataKey === 'Income');
+  const expenseEntries = payload.filter((entry) => entry.dataKey !== 'Income');
 
   return (
     <div className="flex flex-wrap justify-center gap-6 mt-6">
@@ -110,7 +130,7 @@ const CustomLegend = ({ payload }: any) => {
           <span className="text-sm text-gray-600 font-medium">{incomeEntry.value}</span>
         </div>
       )}
-      {expenseEntries.map((entry: any, index: number) => (
+      {expenseEntries.map((entry, index) => (
         <div key={index} className="flex items-center gap-2">
           <div
             className="w-4 h-4 rounded"
@@ -193,7 +213,7 @@ export function DashboardSummaryChart({ data }: DashboardSummaryChartProps) {
         />
         <Tooltip content={<CustomTooltip />} />
         <Legend content={<CustomLegend />} />
-        
+
         {/* Stacked bars for expense categories */}
         {categories.map((category) => (
           <Bar
@@ -205,7 +225,7 @@ export function DashboardSummaryChart({ data }: DashboardSummaryChartProps) {
             radius={[0, 0, 0, 0]}
           />
         ))}
-        
+
         {/* Line for Income */}
         <Line
           type="monotone"

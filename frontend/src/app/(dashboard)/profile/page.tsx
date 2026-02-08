@@ -13,7 +13,7 @@ import { Trash2, Edit2, Plus, Save, X } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
 export default function ProfilePage() {
-    const { user, login } = useAuth(); // Re-login might be needed to update context if name changes
+    const { user } = useAuth(); // Re-login might be needed to update context if name changes
     const [activeTab, setActiveTab] = useState<'account' | 'categories'>('account');
 
     // Account State
@@ -61,7 +61,7 @@ export default function ProfilePage() {
         e.preventDefault();
         setProfileLoading(true);
         try {
-            const updatedUser = await userService.updateProfile({
+            await userService.updateProfile({
                 name: profileData.name,
                 password: profileData.password || undefined,
                 new_password: profileData.new_password || undefined,

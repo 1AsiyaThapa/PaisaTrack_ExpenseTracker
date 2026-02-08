@@ -5,17 +5,13 @@ import { Transaction } from '@/types';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Wallet } from 'lucide-react';
-
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { CategorySelect } from '@/components/ui/CategorySelect';
 import { IncomeDonutChart } from '@/components/charts/IncomeDonutChart';
 
 export default function IncomePage() {
-  const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [chartData, setChartData] = useState<Array<{ category: string; total: number }>>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);

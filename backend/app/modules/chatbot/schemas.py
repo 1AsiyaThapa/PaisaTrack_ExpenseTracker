@@ -1,10 +1,11 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
-from typing import Literal, Optional
 
 
 class LLMRequest(BaseModel):
     prompt: str
-    history: Optional[list] = None
+    history: list | None = None
 
 
 class LLMResponse(BaseModel):

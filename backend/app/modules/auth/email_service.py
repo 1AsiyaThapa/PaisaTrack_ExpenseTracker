@@ -1,10 +1,13 @@
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+from anyio.to_thread import run_sync
+
 from app.core.config import settings
 
 
-def send_otp_email(to_email: str, otp_code: str, name: str) -> bool:
+def _send_otp_email_sync(to_email: str, otp_code: str, name: str) -> bool:
     """Send OTP email via Gmail"""
     try:
         msg = MIMEMultipart("alternative")
@@ -45,3 +48,7 @@ def send_otp_email(to_email: str, otp_code: str, name: str) -> bool:
     except Exception as e:
         print(f"Failed to send email: {e}")
         return False
+
+
+async def send_otp_email(to_email: str, otp_code: str, name: str) -> bool:
+    return await run_sync(_send_otp_email_sync, to_email, otp_code, name)
