@@ -5,24 +5,22 @@ import { transactionService } from '@/services/api';
 import { Transaction } from '@/types';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Wallet, CreditCard, PiggyBank } from 'lucide-react';
-import { IncomeExpenseChart } from '@/components/charts/IncomeExpenseChart';
+import { DashboardSummaryChart } from '@/components/charts/DashboardSummaryChart';
 
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const router = useRouter();
   const [stats, setStats] = useState({
     total_income: 0,
     total_expenses: 0,
     balance: 0,
     recent_transactions: [] as Transaction[],
   });
-  const [chartData, setChartData] = useState<Array<{ month: string; income: number; expense: number }>>([]);
+  const [chartData, setChartData] = useState<Array<Record<string, string | number>>>([]);
   const [loading, setLoading] = useState(true);
 
   // Delete Confirmation State
@@ -46,7 +44,7 @@ export default function Dashboard() {
 
   const loadChartData = async () => {
     try {
-      const response = await transactionService.getIncomeExpenseComparison(6);
+      const response = await transactionService.getDashboardSummary(6);
       setChartData(response.data);
     } catch (error) {
       console.error('Error loading chart data:', error);
@@ -138,17 +136,15 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Income vs Expense Chart */}
+      {/* Financial Summary Chart */}
       <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
         <CardContent className="p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Income vs Expenses</h2>
-          {chartData.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
-              No data available. Add transactions to see your income vs expenses comparison.
-            </div>
-          ) : (
-            <IncomeExpenseChart data={chartData} />
-          )}
+          <h2 className="text-lg font-bold text-gray-900 mb-6">Financial Summary</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            Stacked bars show expenses by category. The green line shows your income.
+            The gap between them indicates your savings (or overspending).
+          </p>
+          <DashboardSummaryChart data={chartData} />
         </CardContent>
       </Card>
 

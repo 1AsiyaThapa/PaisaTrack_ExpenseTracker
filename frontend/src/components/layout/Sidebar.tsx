@@ -38,7 +38,7 @@ const NAV_ITEMS = [
     label: 'Profile',
     href: '/profile',
     icon: User,
-    color: 'text-purple-600',
+    color: 'text-gray-600',
   },
 ];
 
