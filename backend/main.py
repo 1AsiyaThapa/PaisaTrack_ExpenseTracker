@@ -11,12 +11,14 @@ from sqlalchemy.exc import SQLAlchemyError
 
 # Import models to ensure they are registered with Base
 import app.modules.auth.models
+import app.modules.budgets.models
 import app.modules.categories.models
 import app.modules.transactions.models
 import app.modules.users.models
 from app.core.config import settings
 from app.core.database import Base, engine
 from app.modules.auth.routes import router as auth_router
+from app.modules.budgets.routes import router as budget_router
 from app.modules.categories.routes import router as cat_router
 from app.modules.chatbot.routes import router as chat_router
 from app.modules.transactions.routes import router as tx_router
@@ -74,6 +76,7 @@ os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(auth_router)
+app.include_router(budget_router)
 app.include_router(users_router)
 app.include_router(tx_router)
 app.include_router(cat_router)

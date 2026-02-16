@@ -41,11 +41,14 @@ export interface Transaction {
 }
 
 export interface Budget {
-  id: string;
-  category: string;
-  limit: number;
-  spent: number;
-  period: 'monthly' | 'weekly' | 'yearly';
+  amount: number;
+  month: number;
+  year: number;
+  reset_date: string;
+}
+
+export interface BudgetUpdate {
+  amount: number;
 }
 
 export interface RecurringTransaction {

@@ -7,8 +7,9 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Wallet, CreditCard, PiggyBank } from 'lucide-react';
+import { Wallet, CreditCard, PiggyBank, TrendingDown, ArrowRight, AlertCircle } from 'lucide-react';
 import { DashboardSummaryChart } from '@/components/charts/DashboardSummaryChart';
+import Link from 'next/link';
 
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
@@ -18,6 +19,9 @@ export default function Dashboard() {
     total_income: 0,
     total_expenses: 0,
     balance: 0,
+    monthly_budget: 0,
+    monthly_spent: 0,
+    reset_date: '',
     recent_transactions: [] as Transaction[],
   });
   const [chartData, setChartData] = useState<Array<Record<string, string | number>>>([]);
@@ -82,7 +86,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm hover:shadow-md transition-shadow">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
@@ -134,7 +138,176 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+        <Link href="/budget" className="block">
+          <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm hover:shadow-md transition-all hover:scale-[1.02] cursor-pointer">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-purple-50 rounded-xl">
+                  <div className="w-6 h-6 text-purple-600">
+                    <TrendingDown size={24} />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-500">Monthly Budget</div>
+                  {stats.monthly_budget > 0 ? (
+                    <>
+                      <div className="text-2xl font-bold text-gray-900">
+                        ₹{stats.monthly_spent.toLocaleString()}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="text-xs text-gray-500">
+                          of ₹{stats.monthly_budget.toLocaleString()}
+                        </div>
+                        <div className={`text-xs font-semibold ${
+                          Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 100 ? 'text-red-600' :
+                          Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 80 ? 'text-orange-600' :
+                          'text-green-600'
+                        }`}>
+                          ({Math.round((stats.monthly_spent / stats.monthly_budget) * 100)}%)
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-sm text-purple-600 font-medium mt-1 flex items-center gap-1">
+                      Set budget <ArrowRight className="w-3 h-3" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
+
+      {/* Budget Summary Card */}
+      {stats.monthly_budget > 0 && (
+        <Card className="border-none shadow-sm bg-gradient-to-br from-purple-50 to-white backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <PiggyBank className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Monthly Budget</h2>
+                  <p className="text-sm text-gray-500">Track your spending this month</p>
+                </div>
+              </div>
+              <Link href="/budget">
+                <Button variant="ghost" size="sm" className="text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                  View Details
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+
+            <div className="space-y-4">
+              {/* Budget Stats */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-white/70 rounded-lg p-4">
+                  <div className="text-xs text-gray-500 mb-1">Budget</div>
+                  <div className="text-xl font-bold text-gray-900">
+                    ₹{stats.monthly_budget.toLocaleString()}
+                  </div>
+                </div>
+                <div className="bg-white/70 rounded-lg p-4">
+                  <div className="text-xs text-gray-500 mb-1">Spent</div>
+                  <div className="text-xl font-bold text-red-600">
+                    ₹{stats.monthly_spent.toLocaleString()}
+                  </div>
+                </div>
+                <div className="bg-white/70 rounded-lg p-4">
+                  <div className="text-xs text-gray-500 mb-1">Remaining</div>
+                  <div className={`text-xl font-bold ${(stats.monthly_budget - stats.monthly_spent) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    ₹{Math.abs(stats.monthly_budget - stats.monthly_spent).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-700">Progress</span>
+                  <span className={`text-sm font-bold ${
+                    Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 100 ? 'text-red-600' :
+                    Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 80 ? 'text-orange-600' :
+                    'text-green-600'
+                  }`}>
+                    {Math.round((stats.monthly_spent / stats.monthly_budget) * 100)}%
+                  </span>
+                </div>
+                <div className="relative w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ease-out ${
+                      Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 100 ? 'bg-red-600' :
+                      Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 80 ? 'bg-orange-500' :
+                      'bg-green-600'
+                    }`}
+                    style={{ width: `${Math.min(Math.round((stats.monthly_spent / stats.monthly_budget) * 100), 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Status Alert */}
+              {Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 80 && (
+                <div className={`flex items-start gap-2 p-3 rounded-lg ${
+                  Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 100 
+                    ? 'bg-red-50 border border-red-200' 
+                    : 'bg-orange-50 border border-orange-200'
+                }`}>
+                  <AlertCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                    Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 100 
+                      ? 'text-red-600' 
+                      : 'text-orange-600'
+                  }`} />
+                  <p className={`text-sm ${
+                    Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 100 
+                      ? 'text-red-800' 
+                      : 'text-orange-800'
+                  }`}>
+                    {Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 100 
+                      ? `You've exceeded your budget by ₹${Math.abs(stats.monthly_budget - stats.monthly_spent).toLocaleString()}`
+                      : `You're approaching your budget limit. ₹${(stats.monthly_budget - stats.monthly_spent).toLocaleString()} remaining.`
+                    }
+                  </p>
+                </div>
+              )}
+
+              {/* Reset Date */}
+              <div className="text-xs text-gray-500 text-center pt-2">
+                Budget resets on {format(new Date(stats.reset_date), 'MMM dd, yyyy')}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* No Budget Set */}
+      {stats.monthly_budget === 0 && (
+        <Card className="border-none shadow-sm bg-gradient-to-br from-purple-50 to-white backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <PiggyBank className="w-8 h-8 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Set Your Monthly Budget</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Track your spending and stay on top of your finances
+                  </p>
+                </div>
+              </div>
+              <Link href="/budget">
+                <Button className="bg-purple-600 hover:bg-purple-700">
+                  Set Budget
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Financial Summary Chart */}
       <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">

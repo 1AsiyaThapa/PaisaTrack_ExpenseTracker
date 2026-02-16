@@ -139,6 +139,9 @@ export const transactionService = {
     total_income: number;
     total_expenses: number;
     balance: number;
+    monthly_budget: number;
+    monthly_spent: number;
+    reset_date: string;
     recent_transactions: Transaction[];
   }> {
     return apiRequest('/transactions/stats');
@@ -231,14 +234,14 @@ export const transactionService = {
 };
 
 export const budgetService = {
-  async getBudget(): Promise<Budget[]> {
-    return apiRequest<Budget[]>('/budget');
+  async getCurrentBudget(): Promise<Budget> {
+    return apiRequest<Budget>('/budgets/current');
   },
 
-  async updateBudget(budget: Partial<Budget>): Promise<Budget> {
-    return apiRequest<Budget>('/budget', {
+  async setCurrentBudget(amount: number): Promise<Budget> {
+    return apiRequest<Budget>('/budgets/current', {
       method: 'PUT',
-      body: JSON.stringify(budget),
+      body: JSON.stringify({ amount }),
     });
   },
 };
