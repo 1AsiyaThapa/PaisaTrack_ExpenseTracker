@@ -1,6 +1,6 @@
 'use client';
 
-import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface IncomeExpenseChartProps {
   data: Array<{
@@ -10,13 +10,28 @@ interface IncomeExpenseChartProps {
   }>;
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      month: string;
+      income: number;
+      expense: number;
+    };
+    name: string;
+    value: number;
+    color: string;
+    dataKey: string | number;
+  }>;
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
         <p className="text-sm font-semibold text-gray-900 mb-2">{payload[0].payload.month}</p>
         <div className="space-y-1">
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry, index) => (
             <div key={index} className="flex items-center gap-2">
               <div
                 className="w-3 h-3 rounded"
@@ -35,10 +50,18 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-const CustomLegend = ({ payload }: any) => {
+interface CustomLegendProps {
+  payload?: Array<{
+    value: string;
+    color: string;
+    dataKey: string | number;
+  }>;
+}
+
+const CustomLegend = ({ payload }: CustomLegendProps) => {
   return (
     <div className="flex justify-center gap-6 mt-6">
-      {payload?.map((entry: any, index: number) => (
+      {payload?.map((entry, index) => (
         <div key={index} className="flex items-center gap-2">
           <div
             className="w-4 h-4 rounded"
@@ -65,20 +88,20 @@ export function IncomeExpenseChart({ data }: IncomeExpenseChartProps) {
             <stop offset="100%" stopColor="#ef4444" stopOpacity={0.6} />
           </linearGradient>
         </defs>
-        <CartesianGrid 
-          strokeDasharray="3 3" 
-          stroke="#e5e7eb" 
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="#e5e7eb"
           strokeOpacity={0.5}
           vertical={false}
         />
-        <XAxis 
-          dataKey="month" 
+        <XAxis
+          dataKey="month"
           tick={{ fill: '#6b7280', fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif' }}
           axisLine={{ stroke: '#e5e7eb' }}
           tickLine={false}
           height={40}
         />
-        <YAxis 
+        <YAxis
           tick={{ fill: '#6b7280', fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif' }}
           axisLine={false}
           tickLine={false}
@@ -87,14 +110,14 @@ export function IncomeExpenseChart({ data }: IncomeExpenseChartProps) {
         />
         <Tooltip content={<CustomTooltip />} />
         <Legend content={<CustomLegend />} />
-        <Bar 
-          dataKey="income" 
+        <Bar
+          dataKey="income"
           fill="url(#incomeGradient)"
           name="Income"
           radius={[8, 8, 0, 0]}
         />
-        <Bar 
-          dataKey="expense" 
+        <Bar
+          dataKey="expense"
           fill="url(#expenseGradient)"
           name="Expense"
           radius={[8, 8, 0, 0]}

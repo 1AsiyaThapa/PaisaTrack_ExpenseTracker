@@ -11,9 +11,11 @@ dependencies = [
     "pydantic>=2.10.3",
     "pydantic-settings>=2.6.1",
     "fastapi[standard]>=0.119.0",
-    "sqlalchemy>=2.0.44",
+    "sqlalchemy[asyncio]>=2.0.44",
     "pymysql>=1.1.0",
     "google-genai>=1.57.0",
+    "aiomysql>=0.3.2",
+    "passlib[bcrypt]>=1.7.4",
 ]
 requires-python = ">=3.10"
 

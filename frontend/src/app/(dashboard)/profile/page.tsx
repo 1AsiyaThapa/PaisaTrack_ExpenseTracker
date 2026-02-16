@@ -13,7 +13,7 @@ import { Trash2, Edit2, Plus, Save, X } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
 export default function ProfilePage() {
-    const { user, login } = useAuth(); // Re-login might be needed to update context if name changes
+    const { user } = useAuth(); // Re-login might be needed to update context if name changes
     const [activeTab, setActiveTab] = useState<'account' | 'categories'>('account');
 
     // Account State
@@ -61,7 +61,7 @@ export default function ProfilePage() {
         e.preventDefault();
         setProfileLoading(true);
         try {
-            const updatedUser = await userService.updateProfile({
+            await userService.updateProfile({
                 name: profileData.name,
                 password: profileData.password || undefined,
                 new_password: profileData.new_password || undefined,
@@ -121,16 +121,17 @@ export default function ProfilePage() {
 
     return (
         <div className="space-y-6">
+            {/* Header */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900">Profile & Settings</h1>
                 <p className="text-gray-500 mt-1">Manage your account and preferences</p>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-4 border-b mb-6">
+            <div className="flex gap-4 border-b border-gray-200 pb-1">
                 <button
-                    className={`pb-2 px-4 font-medium transition-colors ${activeTab === 'account'
-                        ? 'border-b-2 border-blue-600 text-blue-600'
+                    className={`pb-3 px-4 font-medium transition-colors ${activeTab === 'account'
+                        ? 'border-b-2 border-red-600 text-red-600'
                         : 'text-gray-500 hover:text-gray-700'
                         }`}
                     onClick={() => setActiveTab('account')}
@@ -138,8 +139,8 @@ export default function ProfilePage() {
                     Account Settings
                 </button>
                 <button
-                    className={`pb-2 px-4 font-medium transition-colors ${activeTab === 'categories'
-                        ? 'border-b-2 border-blue-600 text-blue-600'
+                    className={`pb-3 px-4 font-medium transition-colors ${activeTab === 'categories'
+                        ? 'border-b-2 border-red-600 text-red-600'
                         : 'text-gray-500 hover:text-gray-700'
                         }`}
                     onClick={() => setActiveTab('categories')}
@@ -151,35 +152,41 @@ export default function ProfilePage() {
             {/* Account Settings Tab */}
             {activeTab === 'account' && (
                 <Card>
-                    <CardContent className="pt-6">
-                        <form onSubmit={handleProfileUpdate} className="space-y-4 max-w-md">
-                            <Input
-                                label="Full Name"
-                                value={profileData.name}
-                                onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                            />
-
-                            <div className="pt-4 border-t">
-                                <h3 className="text-sm font-medium text-gray-900 mb-4">Change Password</h3>
+                    <CardContent className="p-6">
+                        <form onSubmit={handleProfileUpdate} className="space-y-6 max-w-md">
+                            <div className="space-y-4">
                                 <Input
-                                    label="Current Password"
-                                    type="password"
-                                    value={profileData.password}
-                                    onChange={(e) => setProfileData({ ...profileData, password: e.target.value })}
-                                    placeholder="Leave blank to keep current"
-                                />
-                                <Input
-                                    label="New Password"
-                                    type="password"
-                                    value={profileData.new_password}
-                                    onChange={(e) => setProfileData({ ...profileData, new_password: e.target.value })}
-                                    placeholder="Leave blank to keep current"
+                                    label="Full Name"
+                                    value={profileData.name}
+                                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
                                 />
                             </div>
 
-                            <Button type="submit" disabled={profileLoading}>
-                                {profileLoading ? 'Saving...' : 'Save Changes'}
-                            </Button>
+                            <div className="pt-6 border-t border-gray-200 space-y-4">
+                                <h3 className="text-sm font-semibold text-gray-900">Change Password</h3>
+                                <div className="space-y-4">
+                                    <Input
+                                        label="Current Password"
+                                        type="password"
+                                        value={profileData.password}
+                                        onChange={(e) => setProfileData({ ...profileData, password: e.target.value })}
+                                        placeholder="Leave blank to keep current"
+                                    />
+                                    <Input
+                                        label="New Password"
+                                        type="password"
+                                        value={profileData.new_password}
+                                        onChange={(e) => setProfileData({ ...profileData, new_password: e.target.value })}
+                                        placeholder="Leave blank to keep current"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-2">
+                                <Button type="submit" disabled={profileLoading}>
+                                    {profileLoading ? 'Saving...' : 'Save Changes'}
+                                </Button>
+                            </div>
                         </form>
                     </CardContent>
                 </Card>
@@ -189,7 +196,7 @@ export default function ProfilePage() {
             {activeTab === 'categories' && (
                 <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                        <h2 className="text-lg font-semibold">Manage Categories</h2>
+                        <h2 className="text-lg font-semibold text-gray-900">Manage Categories</h2>
                         <Button onClick={() => setIsAddingCategory(true)} size="sm">
                             <Plus className="w-4 h-4 mr-2" /> Add Category
                         </Button>
@@ -197,8 +204,8 @@ export default function ProfilePage() {
 
                     {/* Add Category Form */}
                     {isAddingCategory && (
-                        <Card className="bg-gray-50 border-dashed">
-                            <CardContent className="pt-6">
+                        <Card className="bg-gray-50/50 border-dashed border-gray-300">
+                            <CardContent className="p-6">
                                 <form onSubmit={handleCreateCategory} className="space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <Input
@@ -207,10 +214,10 @@ export default function ProfilePage() {
                                             onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                                             required
                                         />
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                        <div className="space-y-1">
+                                            <label className="block text-sm font-medium text-gray-700">Type</label>
                                             <select
-                                                className="w-full rounded-md border border-gray-300 p-2"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                                 value={newCategory.type}
                                                 onChange={(e) => setNewCategory({ ...newCategory, type: e.target.value as 'income' | 'expense' })}
                                             >
@@ -218,17 +225,19 @@ export default function ProfilePage() {
                                                 <option value="expense">Expense</option>
                                             </select>
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Icon</label>
+                                        <div className="space-y-1">
+                                            <label className="block text-sm font-medium text-gray-700">Icon</label>
                                             <IconPicker
                                                 selectedIcon={newCategory.icon}
                                                 onSelect={(icon) => setNewCategory({ ...newCategory, icon })}
                                             />
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-3 pt-2">
                                         <Button type="submit" size="sm">Create</Button>
-                                        <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddingCategory(false)}>Cancel</Button>
+                                        <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddingCategory(false)}>
+                                            Cancel
+                                        </Button>
                                     </div>
                                 </form>
                             </CardContent>
@@ -236,109 +245,137 @@ export default function ProfilePage() {
                     )}
 
                     {/* Categories List */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Income Categories */}
+                    {categoryLoading ? (
                         <Card>
-                            <CardContent className="pt-6">
-                                <h3 className="font-semibold text-green-600 mb-4 flex items-center gap-2">
-                                    Income Categories
-                                </h3>
-                                <div className="space-y-2">
-                                    {categories.filter(c => c.type === 'income').map(category => (
-                                        <div key={category.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg group">
-                                            {editingCategory?.id === category.id ? (
-                                                <form onSubmit={handleUpdateCategory} className="flex-1 flex gap-2 items-center">
-                                                    <Input
-                                                        value={editingCategory.name}
-                                                        onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                                                        className="h-8"
-                                                    />
-                                                    <IconPicker
-                                                        selectedIcon={editingCategory.icon}
-                                                        onSelect={(icon) => setEditingCategory({ ...editingCategory, icon })}
-                                                        className="w-32"
-                                                    />
-                                                    <Button type="submit" size="sm" variant="ghost"><Save className="w-4 h-4" /></Button>
-                                                    <Button type="button" size="sm" variant="ghost" onClick={() => setEditingCategory(null)}><X className="w-4 h-4" /></Button>
-                                                </form>
-                                            ) : (
-                                                <>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="p-2 bg-green-50 rounded-lg text-green-600">
-                                                            {(() => {
-                                                                const Icon = ICON_MAP[category.icon] || ICON_MAP['Wallet'];
-                                                                return <Icon className="w-4 h-4" />;
-                                                            })()}
-                                                        </div>
-                                                        <span>{category.name}</span>
-                                                    </div>
-                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Button size="sm" variant="ghost" onClick={() => setEditingCategory(category)}>
-                                                            <Edit2 className="w-4 h-4 text-gray-500" />
-                                                        </Button>
-                                                        <Button size="sm" variant="ghost" onClick={() => setDeleteId(category.id)}>
-                                                            <Trash2 className="w-4 h-4 text-red-500" />
-                                                        </Button>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
+                            <CardContent className="p-6">
+                                <div className="text-center py-12 text-gray-500">Loading categories...</div>
                             </CardContent>
                         </Card>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Income Categories */}
+                            <Card>
+                                <CardContent className="p-6">
+                                    <h3 className="font-semibold text-green-600 mb-6 flex items-center gap-2">
+                                        Income Categories
+                                    </h3>
+                                    {categories.filter(c => c.type === 'income').length === 0 ? (
+                                        <div className="text-center py-8 text-gray-500 text-sm">
+                                            No income categories yet. Add one above.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {categories.filter(c => c.type === 'income').map(category => (
+                                                <div key={category.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg group transition-colors">
+                                                    {editingCategory?.id === category.id ? (
+                                                        <form onSubmit={handleUpdateCategory} className="flex-1 flex gap-2 items-center">
+                                                            <Input
+                                                                value={editingCategory.name}
+                                                                onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                                                                className="h-9 flex-1"
+                                                            />
+                                                            <IconPicker
+                                                                selectedIcon={editingCategory.icon}
+                                                                onSelect={(icon) => setEditingCategory({ ...editingCategory, icon })}
+                                                                className="w-32"
+                                                            />
+                                                            <Button type="submit" size="sm" variant="ghost">
+                                                                <Save className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button type="button" size="sm" variant="ghost" onClick={() => setEditingCategory(null)}>
+                                                                <X className="w-4 h-4" />
+                                                            </Button>
+                                                        </form>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="p-2 bg-green-50 rounded-lg text-green-600">
+                                                                    {(() => {
+                                                                        const Icon = ICON_MAP[category.icon] || ICON_MAP['Wallet'];
+                                                                        return <Icon className="w-4 h-4" />;
+                                                                    })()}
+                                                                </div>
+                                                                <span className="font-medium text-gray-900">{category.name}</span>
+                                                            </div>
+                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Button size="sm" variant="ghost" onClick={() => setEditingCategory(category)}>
+                                                                    <Edit2 className="w-4 h-4 text-gray-500" />
+                                                                </Button>
+                                                                <Button size="sm" variant="ghost" onClick={() => setDeleteId(category.id)}>
+                                                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                                                </Button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
 
-                        {/* Expense Categories */}
-                        <Card>
-                            <CardContent className="pt-6">
-                                <h3 className="font-semibold text-red-600 mb-4 flex items-center gap-2">
-                                    Expense Categories
-                                </h3>
-                                <div className="space-y-2">
-                                    {categories.filter(c => c.type === 'expense').map(category => (
-                                        <div key={category.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg group">
-                                            {editingCategory?.id === category.id ? (
-                                                <form onSubmit={handleUpdateCategory} className="flex-1 flex gap-2 items-center">
-                                                    <Input
-                                                        value={editingCategory.name}
-                                                        onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                                                        className="h-8"
-                                                    />
-                                                    <IconPicker
-                                                        selectedIcon={editingCategory.icon}
-                                                        onSelect={(icon) => setEditingCategory({ ...editingCategory, icon })}
-                                                        className="w-32"
-                                                    />
-                                                    <Button type="submit" size="sm" variant="ghost"><Save className="w-4 h-4" /></Button>
-                                                    <Button type="button" size="sm" variant="ghost" onClick={() => setEditingCategory(null)}><X className="w-4 h-4" /></Button>
-                                                </form>
-                                            ) : (
-                                                <>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="p-2 bg-red-50 rounded-lg text-red-600">
-                                                            {(() => {
-                                                                const Icon = ICON_MAP[category.icon] || ICON_MAP['CreditCard'];
-                                                                return <Icon className="w-4 h-4" />;
-                                                            })()}
-                                                        </div>
-                                                        <span>{category.name}</span>
-                                                    </div>
-                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Button size="sm" variant="ghost" onClick={() => setEditingCategory(category)}>
-                                                            <Edit2 className="w-4 h-4 text-gray-500" />
-                                                        </Button>
-                                                        <Button size="sm" variant="ghost" onClick={() => setDeleteId(category.id)}>
-                                                            <Trash2 className="w-4 h-4 text-red-500" />
-                                                        </Button>
-                                                    </div>
-                                                </>
-                                            )}
+                            {/* Expense Categories */}
+                            <Card>
+                                <CardContent className="p-6">
+                                    <h3 className="font-semibold text-red-600 mb-6 flex items-center gap-2">
+                                        Expense Categories
+                                    </h3>
+                                    {categories.filter(c => c.type === 'expense').length === 0 ? (
+                                        <div className="text-center py-8 text-gray-500 text-sm">
+                                            No expense categories yet. Add one above.
                                         </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {categories.filter(c => c.type === 'expense').map(category => (
+                                                <div key={category.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg group transition-colors">
+                                                    {editingCategory?.id === category.id ? (
+                                                        <form onSubmit={handleUpdateCategory} className="flex-1 flex gap-2 items-center">
+                                                            <Input
+                                                                value={editingCategory.name}
+                                                                onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                                                                className="h-9 flex-1"
+                                                            />
+                                                            <IconPicker
+                                                                selectedIcon={editingCategory.icon}
+                                                                onSelect={(icon) => setEditingCategory({ ...editingCategory, icon })}
+                                                                className="w-32"
+                                                            />
+                                                            <Button type="submit" size="sm" variant="ghost">
+                                                                <Save className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button type="button" size="sm" variant="ghost" onClick={() => setEditingCategory(null)}>
+                                                                <X className="w-4 h-4" />
+                                                            </Button>
+                                                        </form>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="p-2 bg-red-50 rounded-lg text-red-600">
+                                                                    {(() => {
+                                                                        const Icon = ICON_MAP[category.icon] || ICON_MAP['CreditCard'];
+                                                                        return <Icon className="w-4 h-4" />;
+                                                                    })()}
+                                                                </div>
+                                                                <span className="font-medium text-gray-900">{category.name}</span>
+                                                            </div>
+                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Button size="sm" variant="ghost" onClick={() => setEditingCategory(category)}>
+                                                                    <Edit2 className="w-4 h-4 text-gray-500" />
+                                                                </Button>
+                                                                <Button size="sm" variant="ghost" onClick={() => setDeleteId(category.id)}>
+                                                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                                                </Button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
                 </div>
             )}
 

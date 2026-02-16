@@ -1,4 +1,5 @@
-import { Transaction, User, Budget, RecurringTransaction, Category, CategoryCreate } from '../types';
+import { Transaction, User, Budget, RecurringTransaction, Category, MultiReceiptAnalysis } from '../types';
+import { STORAGE_KEYS } from '../utils/constants';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -7,28 +8,44 @@ async function apiRequest<T>(
   options?: RequestInit
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    ...options,
-  });
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      ...options,
+    });
+  } catch (error) {
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      throw new Error(
+        `Cannot connect to backend server at ${BASE_URL}. Please ensure the backend is running.`
+      );
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     if (response.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('paisatrack-user');
+        localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+        localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+          window.location.href = '/login';
+        }
       }
       throw new Error('Authentication required. Please log in again.');
     }
-    
+
     let errorMessage = `API Error: ${response.status} ${response.statusText}`;
     try {
       const errorData = await response.json();
       if (errorData.detail) {
         if (Array.isArray(errorData.detail)) {
-          errorMessage = errorData.detail.map((err: any) => 
+          errorMessage = errorData.detail.map((err: { loc?: string[]; msg: string }) =>
             `${err.loc?.join('.')}: ${err.msg}`
           ).join(', ');
         } else {
@@ -39,7 +56,7 @@ async function apiRequest<T>(
       }
     } catch {
     }
-    
+
     throw new Error(errorMessage);
   }
 
@@ -88,7 +105,7 @@ export const authService = {
   async getCurrentUser(): Promise<User | null> {
     try {
       return await apiRequest<User>('/users/me');
-    } catch (error) {
+    } catch {
       return null;
     }
   },
@@ -106,7 +123,7 @@ export const authService = {
         return await response.json();
       }
       return null;
-    } catch (error) {
+    } catch {
       return null;
     }
   },
@@ -133,11 +150,51 @@ export const transactionService = {
     category: string;
     note?: string;
     date: string;
+    receipt_url?: string;
   }): Promise<Transaction> {
     return apiRequest<Transaction>('/transactions', {
       method: 'POST',
       body: JSON.stringify(transaction),
     });
+  },
+
+  async scanReceipt(file: File): Promise<MultiReceiptAnalysis> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const url = `${BASE_URL}/transactions/scan`;
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+          localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+
+          if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+            window.location.href = '/login';
+          }
+        }
+        throw new Error('Authentication required. Please log in again.');
+      }
+
+      let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        }
+      } catch {
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
   },
 
   async deleteTransaction(id: string): Promise<void> {
@@ -154,6 +211,22 @@ export const transactionService = {
     }>;
   }> {
     return apiRequest(`/transactions/income-expense-comparison?months=${months}`);
+  },
+
+  async getDashboardSummary(months: number = 6): Promise<{
+    data: Array<Record<string, string | number>>;
+  }> {
+    return apiRequest<{
+      data: Array<Record<string, string | number>>;
+    }>(`/transactions/dashboard-summary?months=${months}`);
+  },
+
+  async getCategoryProportions(type: 'income' | 'expense'): Promise<{
+    data: Array<{ category: string; total: number }>;
+  }> {
+    return apiRequest<{
+      data: Array<{ category: string; total: number }>;
+    }>(`/transactions/category-proportions?type=${type}`);
   },
 };
 

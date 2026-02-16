@@ -36,6 +36,7 @@ export interface Transaction {
   category: string;
   note?: string;
   date: string;
+  receipt_url?: string;
   created_at: string;
 }
 
@@ -80,3 +81,16 @@ export interface UserUpdate {
   new_password?: string;
 }
 
+export interface ReceiptItem {
+  item_name: string;
+  amount: number;
+  category: string;
+  note?: string;
+}
+
+export interface MultiReceiptAnalysis {
+  receipt_url: string;
+  date: string;
+  total_on_receipt: number;
+  suggested_transactions: ReceiptItem[];
+}
