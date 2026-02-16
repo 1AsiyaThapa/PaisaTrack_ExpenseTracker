@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Wallet,
   CreditCard,
+  PiggyBank,
   User,
   LogOut,
   Menu,
@@ -33,6 +34,12 @@ const NAV_ITEMS = [
     href: '/expense',
     icon: CreditCard,
     color: 'text-red-600',
+  },
+  {
+    label: 'Budget',
+    href: '/budget',
+    icon: PiggyBank,
+    color: 'text-purple-600',
   },
   {
     label: 'Profile',

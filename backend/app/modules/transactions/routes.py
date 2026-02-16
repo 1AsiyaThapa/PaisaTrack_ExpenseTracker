@@ -1,10 +1,11 @@
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
 from anyio.to_thread import run_sync
-from fastapi import APIRouter, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, UploadFile, status
 from google import genai
 from google.genai import types
 from sqlalchemy import CursorResult, delete, desc, extract, func, select
@@ -14,6 +15,8 @@ from app.core.constants import DEFAULT_CATEGORY
 from app.core.database import DBSession
 from app.core.security import CurrentUserID
 from app.modules.categories.models import Category
+from app.modules.budgets.models import Budget
+from app.modules.auth.email_service import send_budget_alert
 
 from .helpers import process_dashboard_summary
 from .models import Transaction, TransactionType
@@ -28,6 +31,42 @@ from .schemas import (
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
+async def check_budget_notifications(
+    user_id: str,
+    db: DBSession,
+    user_email: str,
+    user_name: str,
+):
+    """Background task to check budget threshold and send notifications"""
+    now = datetime.now()
+    
+    # 1. Get Budget for current month
+    b_stmt = select(Budget).where(
+        Budget.user_id == user_id,
+        Budget.month == now.month,
+        Budget.year == now.year
+    )
+    budget = (await db.execute(b_stmt)).scalar_one_or_none()
+    
+    if not budget or budget.amount <= 0 or budget.notified_80:
+        return
+    
+    # 2. Get Spent this month
+    s_stmt = select(func.sum(Transaction.amount)).where(
+        Transaction.user_id == user_id,
+        Transaction.type == TransactionType.EXPENSE,
+        extract('month', Transaction.date) == now.month,
+        extract('year', Transaction.date) == now.year
+    )
+    spent = (await db.execute(s_stmt)).scalar() or 0
+    
+    # 3. Check threshold
+    if float(spent) >= (float(budget.amount) * 0.8):
+        await send_budget_alert(user_email, user_name, 80)
+        budget.notified_80 = True
+        await db.commit()
+
+
 @router.post(
     "/", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED
 )
@@ -35,11 +74,30 @@ async def create_transaction(
     data: TransactionCreate,
     db: DBSession,
     user_id: CurrentUserID,
+    background_tasks: BackgroundTasks,
 ):
     transaction = Transaction(user_id=user_id, **data.model_dump())
     db.add(transaction)
     await db.commit()
     await db.refresh(transaction)
+    
+    # Trigger budget check in background for expense transactions
+    if data.type == TransactionType.EXPENSE:
+        # Get user info for notification
+        from app.modules.users.models import User
+        user_stmt = select(User).where(User.id == user_id)
+        user_result = await db.execute(user_stmt)
+        user = user_result.scalar_one_or_none()
+        
+        if user:
+            background_tasks.add_task(
+                check_budget_notifications,
+                user_id,
+                db,
+                user.email,
+                user.name
+            )
+    
     return transaction
 
 
@@ -86,14 +144,27 @@ async def delete_transaction(
 async def get_dashboard_stats(
     db: DBSession,
     user_id: CurrentUserID,
+    days: int = Query(None, description="Filter by last N days (7, 30, or 90)"),
 ):
-    # Total Income
+    now = datetime.now()
+    
+    # Build date filter if days parameter is provided
+    date_filter = []
+    if days:
+        start_date = now - timedelta(days=days)
+        date_filter = [Transaction.date >= start_date]
+    
+    # Total Income (filtered by days if provided)
     income_stmt = select(func.sum(Transaction.amount)).where(
-        Transaction.user_id == user_id, Transaction.type == TransactionType.INCOME
+        Transaction.user_id == user_id,
+        Transaction.type == TransactionType.INCOME,
+        *date_filter
     )
-    # Total Expense
+    # Total Expense (filtered by days if provided)
     expense_stmt = select(func.sum(Transaction.amount)).where(
-        Transaction.user_id == user_id, Transaction.type == TransactionType.EXPENSE
+        Transaction.user_id == user_id,
+        Transaction.type == TransactionType.EXPENSE,
+        *date_filter
     )
 
     total_income_res = await db.execute(income_stmt)
@@ -102,12 +173,37 @@ async def get_dashboard_stats(
     total_income = total_income_res.scalar() or Decimal("0")
     total_expense = total_expense_res.scalar() or Decimal("0")
 
-    # Recent Transactions
+    # Monthly Specific Expense for Budget Calculation (always current month)
+    monthly_expense_stmt = select(func.sum(Transaction.amount)).where(
+        Transaction.user_id == user_id,
+        Transaction.type == TransactionType.EXPENSE,
+        extract('month', Transaction.date) == now.month,
+        extract('year', Transaction.date) == now.year
+    )
+    monthly_spent = (await db.execute(monthly_expense_stmt)).scalar() or 0
+
+    # Get Current Budget
+    budget_stmt = select(Budget).where(
+        Budget.user_id == user_id,
+        Budget.month == now.month,
+        Budget.year == now.year
+    )
+    budget_res = await db.execute(budget_stmt)
+    budget = budget_res.scalar_one_or_none()
+    budget_amount = float(budget.amount) if budget else 0.0
+
+    # Calculate Reset Date (1st of next month)
+    if now.month == 12:
+        reset_date = datetime(now.year + 1, 1, 1)
+    else:
+        reset_date = datetime(now.year, now.month + 1, 1)
+
+    # Recent Transactions (limit 10, filtered by days if provided)
     recent_stmt = (
         select(Transaction)
-        .where(Transaction.user_id == user_id)
+        .where(Transaction.user_id == user_id, *date_filter)
         .order_by(Transaction.date.desc())
-        .limit(5)
+        .limit(10)
     )
     recent_res = await db.execute(recent_stmt)
     recent = recent_res.scalars().all()
@@ -116,7 +212,11 @@ async def get_dashboard_stats(
         "total_income": float(total_income),
         "total_expenses": float(total_expense),
         "balance": float(total_income - total_expense),
+        "monthly_budget": budget_amount,
+        "monthly_spent": float(monthly_spent),
+        "reset_date": reset_date,
         "recent_transactions": recent,
+        "days_filter": days,
     }
 
 
