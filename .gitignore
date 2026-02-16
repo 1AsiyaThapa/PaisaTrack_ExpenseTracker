@@ -1,21 +1,51 @@
-#frontend
-frontend/node_modules
-frontend/.env
+# =========================
+# FRONTEND (Next.js)
+# =========================
+frontend/node_modules/
 frontend/.next/
+frontend/out/
+frontend/.env
+frontend/.env.local
+frontend/.env.development
+frontend/.env.production
 
-#Backend
+# =========================
+# BACKEND (FastAPI)
+# =========================
 backend/.env
-backend/.venv
+backend/.venv/
+backend/venv/
 backend/__pycache__/
-backend/*.pyc
+backend/**/*.pyc
+backend/uploads/
 
+# =========================
+# PYTHON
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Common
-.env
-*.env
+# =========================
+# DATABASE
+# =========================
+*.sqlite3
+*.db
+
+# =========================
+# LOGS
+# =========================
 *.log
-.DS_Store
 
-# Editor
+# =========================
+# SYSTEM FILES
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# EDITORS
+# =========================
 .vscode/
 .idea/
