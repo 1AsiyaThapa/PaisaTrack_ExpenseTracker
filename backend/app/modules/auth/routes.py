@@ -144,7 +144,7 @@ async def request_otp(
     db.add(email_otp)
     await db.commit()
 
-    email_sent = send_otp_email(
+    email_sent = await send_otp_email(
         to_email=otp_request.email, otp_code=otp_code, name=otp_request.name
     )
 

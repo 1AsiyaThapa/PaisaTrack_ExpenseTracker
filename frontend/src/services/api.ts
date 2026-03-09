@@ -1,4 +1,4 @@
-import { Transaction, User, Budget, RecurringTransaction, Category, MultiReceiptAnalysis } from '../types';
+import { Transaction, User, Budget, RecurringTransaction, Category, MultiReceiptAnalysis, RecurringExpense } from '../types';
 import { STORAGE_KEYS } from '../utils/constants';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
@@ -154,6 +154,7 @@ export const transactionService = {
     note?: string;
     date: string;
     receipt_url?: string;
+    frequency?: 'weekly' | 'monthly' | 'semi_annually' | 'yearly';
   }): Promise<Transaction> {
     return apiRequest<Transaction>('/transactions', {
       method: 'POST',
@@ -230,6 +231,17 @@ export const transactionService = {
     return apiRequest<{
       data: Array<{ category: string; total: number }>;
     }>(`/transactions/category-proportions?type=${type}`);
+  },
+
+  async getUpcomingRecurringExpenses(): Promise<RecurringExpense[]> {
+    return apiRequest<RecurringExpense[]>('/transactions/recurring/upcoming');
+  },
+
+  async handleRecurringAction(id: string, action: 'mark_done' | 'skip_once' | 'turn_off'): Promise<void> {
+    return apiRequest<void>(`/transactions/recurring/${id}/action`, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    });
   },
 };
 

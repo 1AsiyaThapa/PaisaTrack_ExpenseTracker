@@ -15,7 +15,8 @@ dependencies = [
     "pymysql>=1.1.0",
     "google-genai>=1.57.0",
     "aiomysql>=0.3.2",
-    "passlib[bcrypt]>=1.7.4",
+    "argon2-cffi>=25.1.0",
+    "python-dateutil>=2.8.2",
 ]
 requires-python = ">=3.10"
 

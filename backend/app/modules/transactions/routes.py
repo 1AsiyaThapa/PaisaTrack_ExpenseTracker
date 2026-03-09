@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
@@ -18,7 +18,7 @@ from app.modules.categories.models import Category
 from app.modules.budgets.models import Budget
 from app.modules.auth.email_service import send_budget_alert
 
-from .helpers import process_dashboard_summary
+from .helpers import process_dashboard_summary, calculate_next_due_date, should_show_recurring_expense
 from .models import Transaction, TransactionType
 from .schemas import (
     IncomeExpenseComparisonResponse,
@@ -26,6 +26,8 @@ from .schemas import (
     MultiReceiptAnalysis,
     TransactionCreate,
     TransactionResponse,
+    RecurringExpenseResponse,
+    RecurringActionRequest,
 )
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
@@ -444,3 +446,113 @@ async def scan_receipt(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to scan receipt: {str(e)}",
         )
+
+
+
+@router.get("/recurring/upcoming", response_model=list[RecurringExpenseResponse])
+async def get_upcoming_recurring_expenses(
+    db: DBSession,
+    user_id: CurrentUserID,
+):
+    """Get all upcoming recurring expenses that should be shown (within 3 days of due date)"""
+    
+    # Get all transactions with frequency set (recurring expenses only)
+    stmt = select(Transaction).where(
+        Transaction.user_id == user_id,
+        Transaction.type == TransactionType.EXPENSE,
+        Transaction.frequency.isnot(None)
+    )
+    
+    result = await db.execute(stmt)
+    recurring_transactions = result.scalars().all()
+    
+    upcoming = []
+    for tx in recurring_transactions:
+        # Calculate next due date
+        next_due = calculate_next_due_date(tx.date, tx.frequency, tx.last_handled_date)
+        
+        # Check if it should be shown (within 3 days)
+        if should_show_recurring_expense(next_due):
+            upcoming.append(
+                RecurringExpenseResponse(
+                    id=tx.id,
+                    amount=tx.amount,
+                    category=tx.category,
+                    note=tx.note,
+                    frequency=tx.frequency,
+                    next_due_date=next_due,
+                    original_date=tx.date
+                )
+            )
+    
+    return upcoming
+
+
+@router.post("/recurring/{transaction_id}/action", status_code=status.HTTP_200_OK)
+async def handle_recurring_action(
+    transaction_id: str,
+    action_data: RecurringActionRequest,
+    db: DBSession,
+    user_id: CurrentUserID,
+):
+    """Handle actions on recurring expenses: mark_done, skip_once, or turn_off"""
+    
+    # Get the transaction
+    stmt = select(Transaction).where(
+        Transaction.id == transaction_id,
+        Transaction.user_id == user_id,
+        Transaction.frequency.isnot(None)
+    )
+    result = await db.execute(stmt)
+    transaction = result.scalar_one_or_none()
+    
+    if not transaction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Recurring transaction not found"
+        )
+    
+    action = action_data.action
+    
+    if action == "mark_done":
+        # Create a new transaction for this occurrence
+        next_due = calculate_next_due_date(transaction.date, transaction.frequency, transaction.last_handled_date)
+        
+        new_transaction = Transaction(
+            user_id=user_id,
+            amount=transaction.amount,
+            type=transaction.type,
+            category=transaction.category,
+            note=transaction.note,
+            date=next_due,
+            receipt_url=transaction.receipt_url,
+            frequency=None,  # This is a completed instance, not recurring
+            last_handled_date=None
+        )
+        db.add(new_transaction)
+        
+        # Update last_handled_date on the parent recurring transaction
+        transaction.last_handled_date = next_due
+        
+    elif action == "skip_once":
+        # Just update last_handled_date to skip this occurrence
+        next_due = calculate_next_due_date(transaction.date, transaction.frequency, transaction.last_handled_date)
+        transaction.last_handled_date = next_due
+        
+    elif action == "turn_off":
+        # Turn off recurrence by setting frequency to None
+        transaction.frequency = None
+        transaction.last_handled_date = None
+        
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid action. Must be 'mark_done', 'skip_once', or 'turn_off'"
+        )
+    
+    await db.commit()
+    
+    return {
+        "message": f"Action '{action}' completed successfully",
+        "transaction_id": transaction_id
+    }

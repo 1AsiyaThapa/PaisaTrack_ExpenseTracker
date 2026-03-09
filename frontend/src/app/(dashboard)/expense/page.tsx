@@ -25,6 +25,8 @@ export default function ExpensePage() {
     category: '',
     note: '',
     date: format(new Date(), 'yyyy-MM-dd'),
+    isRecurring: false,
+    frequency: undefined as 'weekly' | 'monthly' | 'semi_annually' | 'yearly' | undefined,
   });
   const [submitting, setSubmitting] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
@@ -132,6 +134,11 @@ export default function ExpensePage() {
       return;
     }
 
+    if (formData.isRecurring && !formData.frequency) {
+      alert('Please select a frequency for recurring expense');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await transactionService.createTransaction({
@@ -141,8 +148,16 @@ export default function ExpensePage() {
         note: formData.note || undefined,
         date: new Date(formData.date).toISOString(),
         receipt_url: receiptUrl || undefined,
+        frequency: formData.isRecurring ? formData.frequency : undefined,
       });
-      setFormData({ amount: '', category: '', note: '', date: format(new Date(), 'yyyy-MM-dd') });
+      setFormData({ 
+        amount: '', 
+        category: '', 
+        note: '', 
+        date: format(new Date(), 'yyyy-MM-dd'),
+        isRecurring: false,
+        frequency: undefined,
+      });
       setReceiptUrl(null);
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -467,6 +482,46 @@ export default function ExpensePage() {
                 placeholder="Add a note"
               />
             </div>
+            
+            {/* Recurring Expense Toggle */}
+            <div className="border-t pt-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="isRecurring"
+                  checked={formData.isRecurring}
+                  onChange={(e) => setFormData({ ...formData, isRecurring: e.target.checked, frequency: undefined })}
+                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                />
+                <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700 cursor-pointer">
+                  This is a recurring expense
+                </label>
+              </div>
+              
+              {formData.isRecurring && (
+                <div className="animate-in fade-in slide-in-from-top-2 pl-7">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Frequency
+                  </label>
+                  <select
+                    value={formData.frequency || ''}
+                    onChange={(e) => setFormData({ ...formData, frequency: e.target.value as any || undefined })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required={formData.isRecurring}
+                  >
+                    <option value="">Select frequency</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="semi_annually">Semi-Annually (6 months)</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-2">
+                    You'll be reminded 3 days before each due date
+                  </p>
+                </div>
+              )}
+            </div>
+            
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Adding...' : 'Add Expense'}
             </Button>

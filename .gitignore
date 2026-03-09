@@ -13,6 +13,7 @@ backend/.venv/
 backend/__pycache__/
 backend/**/*.pyc      # remove all pyc files in subfolders
 
+
 # --------------------------
 # Common
 # --------------------------
@@ -26,3 +27,6 @@ backend/**/*.pyc      # remove all pyc files in subfolders
 # --------------------------
 .vscode/
 .idea/
+
+**/__pycache__/
+*.pyc
