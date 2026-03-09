@@ -38,6 +38,18 @@ export interface Transaction {
   date: string;
   receipt_url?: string;
   created_at: string;
+  frequency?: 'weekly' | 'monthly' | 'semi_annually' | 'yearly';
+  last_handled_date?: string;
+}
+
+export interface RecurringExpense {
+  id: string;
+  amount: number;
+  category: string;
+  note?: string;
+  frequency: 'weekly' | 'monthly' | 'semi_annually' | 'yearly';
+  next_due_date: string;
+  original_date: string;
 }
 
 export interface Budget {

@@ -2,13 +2,14 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { transactionService } from '@/services/api';
-import { Transaction } from '@/types';
+import { Transaction, RecurringExpense } from '@/types';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Wallet, CreditCard, PiggyBank, TrendingDown, ArrowRight, AlertCircle } from 'lucide-react';
 import { DashboardSummaryChart } from '@/components/charts/DashboardSummaryChart';
+import { RecurringExpenseCard } from '@/components/RecurringExpenseCard';
 import Link from 'next/link';
 
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -25,6 +26,7 @@ export default function Dashboard() {
     recent_transactions: [] as Transaction[],
   });
   const [chartData, setChartData] = useState<Array<Record<string, string | number>>>([]);
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Delete Confirmation State
@@ -33,6 +35,7 @@ export default function Dashboard() {
   useEffect(() => {
     loadStats();
     loadChartData();
+    loadRecurringExpenses();
   }, []);
 
   const loadStats = async () => {
@@ -53,6 +56,20 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error loading chart data:', error);
     }
+  };
+
+  const loadRecurringExpenses = async () => {
+    try {
+      const data = await transactionService.getUpcomingRecurringExpenses();
+      setRecurringExpenses(data);
+    } catch (error) {
+      console.error('Error loading recurring expenses:', error);
+    }
+  };
+
+  const handleRecurringUpdate = () => {
+    loadRecurringExpenses();
+    loadStats();
   };
 
   const confirmDelete = async () => {
@@ -308,6 +325,9 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+
+      {/* Recurring Expenses Alert */}
+      <RecurringExpenseCard expenses={recurringExpenses} onUpdate={handleRecurringUpdate} />
 
       {/* Financial Summary Chart */}
       <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">

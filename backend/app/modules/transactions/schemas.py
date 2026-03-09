@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .models import TransactionType
+from .models import TransactionType, RecurrenceFrequency
 
 
 class TransactionBase(BaseModel):
@@ -13,6 +13,7 @@ class TransactionBase(BaseModel):
     note: str | None = None
     date: datetime
     receipt_url: str | None = None
+    frequency: RecurrenceFrequency | None = None
 
 
 class TransactionCreate(TransactionBase):
@@ -23,6 +24,7 @@ class TransactionResponse(TransactionBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
     created_at: datetime
+    last_handled_date: datetime | None = None
 
 
 class ReceiptItem(BaseModel):
@@ -56,3 +58,18 @@ class IncomeExpenseDataPoint(BaseModel):
 
 class IncomeExpenseComparisonResponse(BaseModel):
     data: list[IncomeExpenseDataPoint]
+
+
+class RecurringExpenseResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    amount: Decimal
+    category: str
+    note: str | None
+    frequency: RecurrenceFrequency
+    next_due_date: datetime
+    original_date: datetime
+
+
+class RecurringActionRequest(BaseModel):
+    action: str = Field(..., description="Action to perform: 'mark_done', 'skip_once', or 'turn_off'")

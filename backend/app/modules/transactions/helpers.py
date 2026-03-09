@@ -1,5 +1,5 @@
 from .models import TransactionType
-
+from datetime import datetime
 
 def process_dashboard_summary(raw_data, months: int) -> list[dict]:
     """
@@ -54,3 +54,34 @@ def process_dashboard_summary(raw_data, months: int) -> list[dict]:
         result.append(month_data)
 
     return result
+
+
+
+def calculate_next_due_date(original_date: datetime, frequency: str, last_handled: datetime | None) -> datetime:
+    """Calculate the next due date for a recurring expense"""
+    from dateutil.relativedelta import relativedelta
+    
+    # Start from last_handled_date if available, otherwise from original_date
+    base_date = last_handled if last_handled else original_date
+    
+    if frequency == "weekly":
+        return base_date + relativedelta(weeks=1)
+    elif frequency == "monthly":
+        return base_date + relativedelta(months=1)
+    elif frequency == "semi_annually":
+        return base_date + relativedelta(months=6)
+    elif frequency == "yearly":
+        return base_date + relativedelta(years=1)
+    
+    return base_date
+
+
+def should_show_recurring_expense(next_due_date: datetime, days_before: int = 3) -> bool:
+    """Check if a recurring expense should be shown (within days_before of due date)"""
+    from datetime import timedelta
+    
+    now = datetime.now()
+    alert_date = next_due_date - timedelta(days=days_before)
+    
+    # Show if current date is between alert_date and next_due_date (inclusive)
+    return alert_date <= now <= next_due_date

@@ -2,24 +2,30 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import httpx
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from fastapi import Cookie, Depends, HTTPException, status
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
 
 # Password Hashing Configuration
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+ph = PasswordHasher()
 
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt"""
-    return pwd_context.hash(password)
+    """Hash a password using Argon2"""
+    return ph.hash(password)
 
 
-def verify_password(password: str, hashed: str) -> bool:
+def verify_password(plain: str, hashed: str | None) -> bool:
     """Verify a password against a hash"""
-    return pwd_context.verify(password, hashed)
+    if not hashed:
+        return False
+    try:
+        return ph.verify(hashed, plain)
+    except VerifyMismatchError:
+        return False
 
 
 # JWT Handling
