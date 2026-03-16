@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 from anyio.to_thread import run_sync
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, UploadFile, status
@@ -110,13 +110,45 @@ async def get_transactions(
     type: TransactionType | None = Query(
         None, description="Filter by transaction type"
     ),
+    category: str | None = Query(None, description="Filter by category name"),
+    date_from: date | None = Query(None, description="Start date in YYYY-MM-DD"),
+    date_to: date | None = Query(None, description="End date in YYYY-MM-DD"),
+    month: int | None = Query(None, ge=1, le=12, description="Filter by month"),
+    year: int | None = Query(None, ge=2000, le=2100, description="Filter by year"),
+    search: str | None = Query(None, description="Search within transaction notes"),
+    sort_by: Literal["date", "amount"] = Query(
+        "date", description="Sort by date or amount"
+    ),
+    sort_order: Literal["asc", "desc"] = Query(
+        "desc", description="Sort ascending or descending"
+    ),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
     stmt = select(Transaction).where(Transaction.user_id == user_id)
+
     if type:
         stmt = stmt.where(Transaction.type == type)
-    stmt = stmt.order_by(Transaction.date.desc()).limit(limit).offset(offset)
+    if category:
+        stmt = stmt.where(Transaction.category == category)
+    if date_from:
+        stmt = stmt.where(Transaction.date >= datetime.combine(date_from, time.min))
+    if date_to:
+        stmt = stmt.where(Transaction.date <= datetime.combine(date_to, time.max))
+    if month:
+        stmt = stmt.where(extract("month", Transaction.date) == month)
+    if year:
+        stmt = stmt.where(extract("year", Transaction.date) == year)
+    if search:
+        stmt = stmt.where(
+            Transaction.note.is_not(None),
+            Transaction.note.ilike(f"%{search.strip()}%"),
+        )
+
+    sort_column = Transaction.amount if sort_by == "amount" else Transaction.date
+    stmt = stmt.order_by(
+        sort_column.asc() if sort_order == "asc" else sort_column.desc()
+    ).limit(limit).offset(offset)
 
     result = await db.execute(stmt)
     return result.scalars().all()

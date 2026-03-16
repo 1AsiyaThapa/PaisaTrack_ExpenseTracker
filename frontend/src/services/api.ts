@@ -1,4 +1,4 @@
-import { Transaction, User, Budget, RecurringTransaction, Category, MultiReceiptAnalysis, RecurringExpense } from '../types';
+import { Transaction, TransactionQueryParams, User, Budget, RecurringTransaction, Category, MultiReceiptAnalysis, RecurringExpense } from '../types';
 import { STORAGE_KEYS } from '../utils/constants';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
@@ -58,6 +58,10 @@ async function apiRequest<T>(
     }
 
     throw new Error(errorMessage);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json();
@@ -130,8 +134,23 @@ export const authService = {
 };
 
 export const transactionService = {
-  async getTransactions(type?: 'income' | 'expense'): Promise<Transaction[]> {
-    const url = type ? `/transactions?type=${type}` : '/transactions';
+  async getTransactions(
+    paramsOrType?: TransactionQueryParams | 'income' | 'expense'
+  ): Promise<Transaction[]> {
+    const params = new URLSearchParams();
+
+    if (typeof paramsOrType === 'string') {
+      params.set('type', paramsOrType);
+    } else if (paramsOrType) {
+      Object.entries(paramsOrType).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          params.set(key, String(value));
+        }
+      });
+    }
+
+    const query = params.toString();
+    const url = query ? `/transactions?${query}` : '/transactions';
     return apiRequest<Transaction[]>(url);
   },
 

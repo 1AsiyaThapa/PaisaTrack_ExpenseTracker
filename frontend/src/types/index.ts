@@ -42,6 +42,20 @@ export interface Transaction {
   last_handled_date?: string;
 }
 
+export interface TransactionQueryParams {
+  type?: 'income' | 'expense';
+  category?: string;
+  date_from?: string;
+  date_to?: string;
+  month?: number;
+  year?: number;
+  search?: string;
+  sort_by?: 'date' | 'amount';
+  sort_order?: 'asc' | 'desc';
+  limit?: number;
+  offset?: number;
+}
+
 export interface RecurringExpense {
   id: string;
   amount: number;
