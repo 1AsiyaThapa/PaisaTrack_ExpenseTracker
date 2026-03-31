@@ -21,13 +21,15 @@ from app.core.security import (
 from app.modules.users.models import User
 from app.modules.users.schemas import UserResponse
 
-from .email_service import send_otp_email
+from .email_service import send_otp_email, send_password_reset_email
 from .helpers import authenticate_user_via_google
 from .models import EmailOTP
 from .schemas import (
+    ForgotPasswordRequest,
     LoginRequest,
     OTPRequest,
     OTPVerifyRequest,
+    ResetPasswordRequest,
     TokenResponse,
 )
 
@@ -155,6 +157,80 @@ async def request_otp(
         )
 
     return {"message": "OTP sent to your email", "email": otp_request.email}
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    req: ForgotPasswordRequest,
+    db: DBSession,
+):
+    """Request OTP for resetting forgotten password"""
+    stmt = select(User).where(User.email == req.email)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        return {"message": "If that email exists, a reset code has been sent."}
+
+    otp_code = "".join(secrets.choice(string.digits) for _ in range(6))
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+    email_otp = EmailOTP(
+        email=req.email,
+        otp_code=otp_code,
+        expires_at=expires_at,
+    )
+    db.add(email_otp)
+    await db.commit()
+
+    await send_password_reset_email(
+        to_email=req.email, otp_code=otp_code, name=user.name
+    )
+
+    return {"message": "If that email exists, a reset code has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    req: ResetPasswordRequest,
+    db: DBSession,
+):
+    """Verify OTP and set new password"""
+    stmt = (
+        select(EmailOTP)
+        .where(
+            EmailOTP.email == req.email,
+            EmailOTP.otp_code == req.otp_code,
+            EmailOTP.expires_at > datetime.now(timezone.utc),
+        )
+        .order_by(EmailOTP.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    otp_record = result.scalars().first()
+
+    if not otp_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired OTP",
+        )
+
+    user_stmt = select(User).where(User.email == req.email)
+    user_result = await db.execute(user_stmt)
+    user = user_result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    user.password_hash = hash_password(req.new_password)
+
+    del_stmt = delete(EmailOTP).where(EmailOTP.email == req.email)
+    await db.execute(del_stmt)
+    await db.commit()
+
+    return {"message": "Password reset successfully. You can now log in."}
 
 
 @router.post("/signup", response_model=TokenResponse)

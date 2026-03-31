@@ -1,393 +1,564 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
+import {
+  Camera,
+  Edit2,
+  Loader2,
+  Lock,
+  Mail,
+  Plus,
+  Save,
+  ShieldCheck,
+  Trash2,
+  Upload,
+  UserCircle2,
+  X,
+} from 'lucide-react';
+
 import { useAuth } from '@/contexts/AuthContext';
-import { userService, categoryService } from '@/services/api';
+import { categoryService, userService } from '@/services/api';
 import { Category, CategoryCreate } from '@/types';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { IconPicker, ICON_MAP } from '@/components/ui/IconPicker';
-import { Trash2, Edit2, Plus, Save, X } from 'lucide-react';
-
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { validatePassword } from '@/lib/utils';
+
+function getInitials(name?: string) {
+  if (!name) return 'PT';
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+}
 
 export default function ProfilePage() {
-    const { user } = useAuth(); // Re-login might be needed to update context if name changes
-    const [activeTab, setActiveTab] = useState<'account' | 'categories'>('account');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user, updateUserState, refreshUser } = useAuth();
 
-    // Account State
-    const [profileData, setProfileData] = useState({
-        name: user?.name || '',
-        password: '',
-        new_password: '',
-    });
-    const [profileLoading, setProfileLoading] = useState(false);
+  const [profileName, setProfileName] = useState(user?.name || '');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-    // Categories State
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [categoryLoading, setCategoryLoading] = useState(true);
-    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-    const [isAddingCategory, setIsAddingCategory] = useState(false);
-    const [newCategory, setNewCategory] = useState<CategoryCreate>({
-        name: '',
-        type: 'expense',
-        icon: 'Wallet',
-        color: '#000000'
-    });
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [profileFeedback, setProfileFeedback] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
-    // Delete Confirmation State
-    const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryLoading, setCategoryLoading] = useState(true);
+  const [categoryFeedback, setCategoryFeedback] = useState<string | null>(null);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategory, setNewCategory] = useState<CategoryCreate>({
+    name: '',
+    type: 'expense',
+    icon: 'Wallet',
+    color: '#000000',
+  });
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (activeTab === 'categories') {
-            loadCategories();
+  useEffect(() => {
+    setProfileName(user?.name || '');
+  }, [user?.name]);
+
+  useEffect(() => {
+    void loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      setCategoryLoading(true);
+      setCategoryError(null);
+      const data = await categoryService.getCategories();
+      setCategories(data);
+    } catch (error) {
+      setCategoryError(error instanceof Error ? error.message : 'Failed to load categories.');
+    } finally {
+      setCategoryLoading(false);
+    }
+  };
+
+  const handleProfileSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setProfileLoading(true);
+    setProfileError(null);
+    setProfileFeedback(null);
+
+    try {
+      const payload: { name?: string; password?: string; new_password?: string } = {};
+
+      if (profileName.trim() && profileName.trim() !== user?.name) {
+        payload.name = profileName.trim();
+      }
+
+      if (currentPassword || newPassword || confirmPassword) {
+        if (!currentPassword) {
+          throw new Error('Enter your current password to set a new one.');
         }
-    }, [activeTab]);
 
-    const loadCategories = async () => {
-        try {
-            setCategoryLoading(true);
-            const data = await categoryService.getCategories();
-            setCategories(data);
-        } catch (error) {
-            console.error('Failed to load categories', error);
-        } finally {
-            setCategoryLoading(false);
+        const passwordError = validatePassword(newPassword);
+        if (passwordError) {
+          throw new Error(passwordError);
         }
-    };
 
-    const handleProfileUpdate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setProfileLoading(true);
-        try {
-            await userService.updateProfile({
-                name: profileData.name,
-                password: profileData.password || undefined,
-                new_password: profileData.new_password || undefined,
-            });
-            alert('Profile updated successfully');
-            window.location.reload();
-        } catch (error) {
-            console.error('Profile update failed', error);
-            alert('Failed to update profile');
-        } finally {
-            setProfileLoading(false);
+        if (newPassword !== confirmPassword) {
+          throw new Error('New password and confirmation do not match.');
         }
-    };
 
-    const handleCreateCategory = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            await categoryService.createCategory(newCategory);
-            setIsAddingCategory(false);
-            setNewCategory({ name: '', type: 'expense', icon: 'Wallet', color: '#000000' });
-            loadCategories();
-        } catch (error) {
-            console.error('Failed to create category', error);
-            alert('Failed to create category');
-        }
-    };
+        payload.password = currentPassword;
+        payload.new_password = newPassword;
+      }
 
-    const handleUpdateCategory = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editingCategory) return;
-        try {
-            await categoryService.updateCategory(editingCategory.id, {
-                name: editingCategory.name,
-                type: editingCategory.type,
-                icon: editingCategory.icon,
-                color: editingCategory.color
-            });
-            setEditingCategory(null);
-            loadCategories();
-        } catch (error) {
-            console.error('Failed to update category', error);
-            alert('Failed to update category');
-        }
-    };
+      if (Object.keys(payload).length === 0) {
+        setProfileFeedback('Nothing to update yet. Make a change and save again.');
+        return;
+      }
 
-    const confirmDeleteCategory = async () => {
-        if (!deleteId) return;
-        try {
-            await categoryService.deleteCategory(deleteId);
-            loadCategories();
-        } catch (error) {
-            console.error('Failed to delete category', error);
-        } finally {
-            setDeleteId(null);
-        }
-    };
+      const updatedUser = await userService.updateProfile(payload);
+      updateUserState(updatedUser);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setProfileFeedback('Profile saved successfully.');
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'Failed to update your profile.');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    setProfileError(null);
+    setProfileFeedback(null);
+
+    try {
+      const updatedUser = await userService.uploadProfilePicture(file);
+      updateUserState(updatedUser);
+      setProfileFeedback('Profile picture updated.');
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'Unable to upload profile picture.');
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleCreateCategory = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      setCategoryError(null);
+      setCategoryFeedback(null);
+      await categoryService.createCategory(newCategory);
+      setIsAddingCategory(false);
+      setNewCategory({ name: '', type: 'expense', icon: 'Wallet', color: '#000000' });
+      setCategoryFeedback('Category created.');
+      await loadCategories();
+    } catch (error) {
+      setCategoryError(error instanceof Error ? error.message : 'Failed to create category.');
+    }
+  };
+
+  const handleUpdateCategory = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory) return;
+
+    try {
+      setCategoryError(null);
+      setCategoryFeedback(null);
+      await categoryService.updateCategory(editingCategory.id, {
+        name: editingCategory.name,
+        type: editingCategory.type,
+        icon: editingCategory.icon,
+        color: editingCategory.color,
+      });
+      setEditingCategory(null);
+      setCategoryFeedback('Category updated.');
+      await loadCategories();
+    } catch (error) {
+      setCategoryError(error instanceof Error ? error.message : 'Failed to update category.');
+    }
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!deleteId) return;
+
+    try {
+      setCategoryError(null);
+      setCategoryFeedback(null);
+      await categoryService.deleteCategory(deleteId);
+      setCategoryFeedback('Category deleted.');
+      await loadCategories();
+    } catch (error) {
+      setCategoryError(error instanceof Error ? error.message : 'Failed to delete category.');
+    } finally {
+      setDeleteId(null);
+    }
+  };
+
+  const renderCategoryColumn = (type: 'income' | 'expense', title: string, tone: 'green' | 'red') => {
+    const filteredCategories = categories.filter((category) => category.type === type);
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Profile & Settings</h1>
-                <p className="text-gray-500 mt-1">Manage your account and preferences</p>
+      <Card>
+        <CardContent className="p-6">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h3 className={`text-lg font-semibold ${tone === 'green' ? 'text-green-700' : 'text-red-700'}`}>{title}</h3>
+              <p className="text-sm text-slate-500">
+                {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
+              </p>
             </div>
+          </div>
 
-            {/* Tabs */}
-            <div className="flex gap-4 border-b border-gray-200 pb-1">
-                <button
-                    className={`pb-3 px-4 font-medium transition-colors ${activeTab === 'account'
-                        ? 'border-b-2 border-red-600 text-red-600'
-                        : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                    onClick={() => setActiveTab('account')}
-                >
-                    Account Settings
-                </button>
-                <button
-                    className={`pb-3 px-4 font-medium transition-colors ${activeTab === 'categories'
-                        ? 'border-b-2 border-red-600 text-red-600'
-                        : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                    onClick={() => setActiveTab('categories')}
-                >
-                    Categories
-                </button>
+          {filteredCategories.length === 0 ? (
+            <div className="app-surface-muted p-6 text-center text-sm text-slate-500">
+              No {type} categories yet.
             </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredCategories.map((category) => {
+                const Icon = ICON_MAP[category.icon] || ICON_MAP.Wallet;
+                const isEditing = editingCategory?.id === category.id;
 
-            {/* Account Settings Tab */}
-            {activeTab === 'account' && (
-                <Card>
-                    <CardContent className="p-6">
-                        <form onSubmit={handleProfileUpdate} className="space-y-6 max-w-md">
-                            <div className="space-y-4">
-                                <Input
-                                    label="Full Name"
-                                    value={profileData.name}
-                                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="pt-6 border-t border-gray-200 space-y-4">
-                                <h3 className="text-sm font-semibold text-gray-900">Change Password</h3>
-                                <div className="space-y-4">
-                                    <Input
-                                        label="Current Password"
-                                        type="password"
-                                        value={profileData.password}
-                                        onChange={(e) => setProfileData({ ...profileData, password: e.target.value })}
-                                        placeholder="Leave blank to keep current"
-                                    />
-                                    <Input
-                                        label="New Password"
-                                        type="password"
-                                        value={profileData.new_password}
-                                        onChange={(e) => setProfileData({ ...profileData, new_password: e.target.value })}
-                                        placeholder="Leave blank to keep current"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="pt-2">
-                                <Button type="submit" disabled={profileLoading}>
-                                    {profileLoading ? 'Saving...' : 'Save Changes'}
-                                </Button>
-                            </div>
-                        </form>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Categories Tab */}
-            {activeTab === 'categories' && (
-                <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-lg font-semibold text-gray-900">Manage Categories</h2>
-                        <Button onClick={() => setIsAddingCategory(true)} size="sm">
-                            <Plus className="w-4 h-4 mr-2" /> Add Category
-                        </Button>
-                    </div>
-
-                    {/* Add Category Form */}
-                    {isAddingCategory && (
-                        <Card className="bg-gray-50/50 border-dashed border-gray-300">
-                            <CardContent className="p-6">
-                                <form onSubmit={handleCreateCategory} className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <Input
-                                            label="Category Name"
-                                            value={newCategory.name}
-                                            onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                                            required
-                                        />
-                                        <div className="space-y-1">
-                                            <label className="block text-sm font-medium text-gray-700">Type</label>
-                                            <select
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                                value={newCategory.type}
-                                                onChange={(e) => setNewCategory({ ...newCategory, type: e.target.value as 'income' | 'expense' })}
-                                            >
-                                                <option value="income">Income</option>
-                                                <option value="expense">Expense</option>
-                                            </select>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="block text-sm font-medium text-gray-700">Icon</label>
-                                            <IconPicker
-                                                selectedIcon={newCategory.icon}
-                                                onSelect={(icon) => setNewCategory({ ...newCategory, icon })}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-3 pt-2">
-                                        <Button type="submit" size="sm">Create</Button>
-                                        <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddingCategory(false)}>
-                                            Cancel
-                                        </Button>
-                                    </div>
-                                </form>
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {/* Categories List */}
-                    {categoryLoading ? (
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="text-center py-12 text-gray-500">Loading categories...</div>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Income Categories */}
-                            <Card>
-                                <CardContent className="p-6">
-                                    <h3 className="font-semibold text-green-600 mb-6 flex items-center gap-2">
-                                        Income Categories
-                                    </h3>
-                                    {categories.filter(c => c.type === 'income').length === 0 ? (
-                                        <div className="text-center py-8 text-gray-500 text-sm">
-                                            No income categories yet. Add one above.
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {categories.filter(c => c.type === 'income').map(category => (
-                                                <div key={category.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg group transition-colors">
-                                                    {editingCategory?.id === category.id ? (
-                                                        <form onSubmit={handleUpdateCategory} className="flex-1 flex gap-2 items-center">
-                                                            <Input
-                                                                value={editingCategory.name}
-                                                                onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                                                                className="h-9 flex-1"
-                                                            />
-                                                            <IconPicker
-                                                                selectedIcon={editingCategory.icon}
-                                                                onSelect={(icon) => setEditingCategory({ ...editingCategory, icon })}
-                                                                className="w-32"
-                                                            />
-                                                            <Button type="submit" size="sm" variant="ghost">
-                                                                <Save className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button type="button" size="sm" variant="ghost" onClick={() => setEditingCategory(null)}>
-                                                                <X className="w-4 h-4" />
-                                                            </Button>
-                                                        </form>
-                                                    ) : (
-                                                        <>
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="p-2 bg-green-50 rounded-lg text-green-600">
-                                                                    {(() => {
-                                                                        const Icon = ICON_MAP[category.icon] || ICON_MAP['Wallet'];
-                                                                        return <Icon className="w-4 h-4" />;
-                                                                    })()}
-                                                                </div>
-                                                                <span className="font-medium text-gray-900">{category.name}</span>
-                                                            </div>
-                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <Button size="sm" variant="ghost" onClick={() => setEditingCategory(category)}>
-                                                                    <Edit2 className="w-4 h-4 text-gray-500" />
-                                                                </Button>
-                                                                <Button size="sm" variant="ghost" onClick={() => setDeleteId(category.id)}>
-                                                                    <Trash2 className="w-4 h-4 text-red-500" />
-                                                                </Button>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            {/* Expense Categories */}
-                            <Card>
-                                <CardContent className="p-6">
-                                    <h3 className="font-semibold text-red-600 mb-6 flex items-center gap-2">
-                                        Expense Categories
-                                    </h3>
-                                    {categories.filter(c => c.type === 'expense').length === 0 ? (
-                                        <div className="text-center py-8 text-gray-500 text-sm">
-                                            No expense categories yet. Add one above.
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {categories.filter(c => c.type === 'expense').map(category => (
-                                                <div key={category.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg group transition-colors">
-                                                    {editingCategory?.id === category.id ? (
-                                                        <form onSubmit={handleUpdateCategory} className="flex-1 flex gap-2 items-center">
-                                                            <Input
-                                                                value={editingCategory.name}
-                                                                onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                                                                className="h-9 flex-1"
-                                                            />
-                                                            <IconPicker
-                                                                selectedIcon={editingCategory.icon}
-                                                                onSelect={(icon) => setEditingCategory({ ...editingCategory, icon })}
-                                                                className="w-32"
-                                                            />
-                                                            <Button type="submit" size="sm" variant="ghost">
-                                                                <Save className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button type="button" size="sm" variant="ghost" onClick={() => setEditingCategory(null)}>
-                                                                <X className="w-4 h-4" />
-                                                            </Button>
-                                                        </form>
-                                                    ) : (
-                                                        <>
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="p-2 bg-red-50 rounded-lg text-red-600">
-                                                                    {(() => {
-                                                                        const Icon = ICON_MAP[category.icon] || ICON_MAP['CreditCard'];
-                                                                        return <Icon className="w-4 h-4" />;
-                                                                    })()}
-                                                                </div>
-                                                                <span className="font-medium text-gray-900">{category.name}</span>
-                                                            </div>
-                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <Button size="sm" variant="ghost" onClick={() => setEditingCategory(category)}>
-                                                                    <Edit2 className="w-4 h-4 text-gray-500" />
-                                                                </Button>
-                                                                <Button size="sm" variant="ghost" onClick={() => setDeleteId(category.id)}>
-                                                                    <Trash2 className="w-4 h-4 text-red-500" />
-                                                                </Button>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                return (
+                  <div key={category.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+                    {isEditing ? (
+                      <form onSubmit={handleUpdateCategory} className="space-y-3">
+                        <Input
+                          label="Category name"
+                          value={editingCategory.name}
+                          onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                        />
+                        <IconPicker
+                          selectedIcon={editingCategory.icon}
+                          onSelect={(icon) => setEditingCategory({ ...editingCategory, icon })}
+                        />
+                        <div className="flex gap-2">
+                          <Button type="submit" size="sm">
+                            <Save className="h-4 w-4" />
+                            Save
+                          </Button>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => setEditingCategory(null)}>
+                            <X className="h-4 w-4" />
+                            Cancel
+                          </Button>
                         </div>
+                      </form>
+                    ) : (
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`rounded-xl p-2 ${tone === 'green' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-slate-900">{category.name}</div>
+                            <div className="text-xs text-slate-500">{category.icon}</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingCategory(category)}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setDeleteId(category.id)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </div>
                     )}
-                </div>
-            )}
-
-            <ConfirmationModal
-                isOpen={!!deleteId}
-                onClose={() => setDeleteId(null)}
-                onConfirm={confirmDeleteCategory}
-                title="Delete Category"
-                message="Are you sure you want to delete this category? This might affect your reports."
-                confirmText="Delete"
-                variant="danger"
-            />
-        </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     );
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-page">
+      <div className="app-page-header">
+        <div>
+          <h1 className="app-page-title">Profile & Settings</h1>
+          <p className="app-page-copy">Update your identity, account security, and the categories that power your reports.</p>
+        </div>
+      </div>
+
+      {(profileFeedback || profileError) && (
+        <div className={`rounded-xl px-4 py-3 text-sm ${profileError ? 'border border-red-200 bg-red-50 text-red-700' : 'border border-green-200 bg-green-50 text-green-700'}`}>
+          {profileError || profileFeedback}
+        </div>
+      )}
+
+      <Card>
+        <CardContent className="p-6 md:p-8">
+          <div className="grid gap-8 lg:grid-cols-[auto_1fr] lg:items-center">
+            <div className="relative">
+              {user.picture ? (
+                <Image
+                  src={user.picture}
+                  alt={user.name}
+                  width={96}
+                  height={96}
+                  className="h-24 w-24 rounded-3xl object-cover shadow-sm ring-4 ring-white"
+                />
+              ) : (
+                <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-red-500 to-orange-500 text-2xl font-semibold text-white shadow-sm">
+                  {getInitials(user.name)}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-2 -right-2 rounded-full border border-white bg-white p-2 shadow-sm transition hover:bg-slate-50"
+                disabled={uploadingImage}
+              >
+                {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin text-slate-500" /> : <Camera className="h-4 w-4 text-slate-600" />}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+            </div>
+
+            <div>
+              <div className="text-2xl font-semibold text-slate-900">{user.name}</div>
+              <div className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+                <Mail className="h-4 w-4" />
+                {user.email}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="app-chip">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  {user.google_id ? 'Google-authenticated' : 'Password-protected'}
+                </span>
+                <span className="app-chip">
+                  <UserCircle2 className="h-3.5 w-3.5" />
+                  Joined {new Date(user.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <Card>
+          <CardContent className="p-6">
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-slate-900">Personal details</h2>
+              <p className="text-sm text-slate-500">Keep your profile name current. Your email stays read-only for account safety.</p>
+            </div>
+
+            <form onSubmit={handleProfileSubmit} className="space-y-4">
+              <Input
+                label="Full name"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+              />
+              <Input
+                label="Email address"
+                value={user.email}
+                disabled
+              />
+
+              {!user.google_id ? (
+                <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                  <div>
+                    <h3 className="font-medium text-slate-900">Change password</h3>
+                    <p className="text-sm text-slate-500">Leave these blank if you only want to update your name.</p>
+                  </div>
+                  <Input
+                    label="Current password"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
+                  <Input
+                    label="New password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <Input
+                    label="Confirm new password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-4 text-sm text-blue-700">
+                  Password changes are managed through your Google account because you sign in with Google.
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                <Button type="submit" disabled={profileLoading}>
+                  {profileLoading ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="h-4 w-4" />}
+                  {profileLoading ? 'Saving changes...' : 'Save profile'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void refreshUser()}
+                >
+                  <Upload className="h-4 w-4" />
+                  Refresh profile
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Picture & access</h2>
+              <p className="text-sm text-slate-500">A few quick actions for how your account appears across PaisaTrack.</p>
+            </div>
+
+            <div className="app-surface-muted p-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-red-50 p-3 text-red-600">
+                  <Camera className="h-5 w-5" />
+                </div>
+                <div className="space-y-2">
+                  <div className="font-medium text-slate-900">Profile picture</div>
+                  <p className="text-sm text-slate-500">Upload a square or portrait image to personalize your account.</p>
+                  <Button type="button" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadingImage}>
+                    {uploadingImage ? <LoadingSpinner size="sm" className="mr-2" /> : <Upload className="h-4 w-4" />}
+                    {uploadingImage ? 'Uploading...' : 'Upload new picture'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="app-surface-muted p-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-amber-50 p-3 text-amber-600">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-medium text-slate-900">Sign-in method</div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {user.google_id
+                      ? 'Google login is active on this account.'
+                      : 'Email and password login is active on this account.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Categories</h2>
+            <p className="text-sm text-slate-500">Keep your income and expense categories clean so charts and reports stay useful.</p>
+          </div>
+          <Button onClick={() => setIsAddingCategory((current) => !current)}>
+            <Plus className="h-4 w-4" />
+            {isAddingCategory ? 'Close category form' : 'Add category'}
+          </Button>
+        </div>
+
+        {(categoryFeedback || categoryError) && (
+          <div className={`rounded-xl px-4 py-3 text-sm ${categoryError ? 'border border-red-200 bg-red-50 text-red-700' : 'border border-green-200 bg-green-50 text-green-700'}`}>
+            {categoryError || categoryFeedback}
+          </div>
+        )}
+
+        {isAddingCategory && (
+          <Card>
+            <CardContent className="p-6">
+              <form onSubmit={handleCreateCategory} className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Input
+                    label="Category name"
+                    value={newCategory.name}
+                    onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                    required
+                  />
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Type</label>
+                    <select
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-200"
+                      value={newCategory.type}
+                      onChange={(e) => setNewCategory({ ...newCategory, type: e.target.value as 'income' | 'expense' })}
+                    >
+                      <option value="income">Income</option>
+                      <option value="expense">Expense</option>
+                    </select>
+                  </div>
+                </div>
+
+                <IconPicker
+                  selectedIcon={newCategory.icon}
+                  onSelect={(icon) => setNewCategory({ ...newCategory, icon })}
+                />
+
+                <div className="flex gap-3">
+                  <Button type="submit">Create category</Button>
+                  <Button type="button" variant="ghost" onClick={() => setIsAddingCategory(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {categoryLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <LoadingSpinner />
+          </div>
+        ) : (
+          <div className="grid gap-6 xl:grid-cols-2">
+            {renderCategoryColumn('income', 'Income Categories', 'green')}
+            {renderCategoryColumn('expense', 'Expense Categories', 'red')}
+          </div>
+        )}
+      </div>
+
+      <ConfirmationModal
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={confirmDeleteCategory}
+        title="Delete Category"
+        message="Are you sure you want to delete this category? This may affect your reports and future transaction tagging."
+        confirmText="Delete"
+        variant="danger"
+      />
+    </div>
+  );
 }

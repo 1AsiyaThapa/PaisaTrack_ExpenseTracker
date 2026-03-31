@@ -1,4 +1,6 @@
 import uuid
+import csv
+import io
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -6,6 +8,7 @@ from typing import Literal, cast
 
 from anyio.to_thread import run_sync
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
 from google import genai
 from google.genai import types
 from sqlalchemy import CursorResult, delete, desc, extract, func, select
@@ -152,6 +155,69 @@ async def get_transactions(
 
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+@router.get("/export")
+async def export_transactions_csv(
+    db: DBSession,
+    user_id: CurrentUserID,
+    type: TransactionType | None = Query(
+        None, description="Filter by transaction type"
+    ),
+    time_range: Literal[
+        "last_week", "last_month", "last_year", "all_time", "custom"
+    ] = Query("all_time"),
+    date_from: date | None = Query(None, description="Start date for custom range"),
+    date_to: date | None = Query(None, description="End date for custom range"),
+):
+    """Export filtered transactions as a CSV file"""
+    stmt = select(Transaction).where(Transaction.user_id == user_id)
+
+    if type:
+        stmt = stmt.where(Transaction.type == type)
+
+    now = datetime.now()
+    if time_range == "last_week":
+        stmt = stmt.where(Transaction.date >= now - timedelta(days=7))
+    elif time_range == "last_month":
+        stmt = stmt.where(Transaction.date >= now - timedelta(days=30))
+    elif time_range == "last_year":
+        stmt = stmt.where(Transaction.date >= now - timedelta(days=365))
+    elif time_range == "custom":
+        if date_from:
+            stmt = stmt.where(Transaction.date >= datetime.combine(date_from, time.min))
+        if date_to:
+            stmt = stmt.where(Transaction.date <= datetime.combine(date_to, time.max))
+
+    stmt = stmt.order_by(Transaction.date.desc())
+    result = await db.execute(stmt)
+    transactions = result.scalars().all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    writer.writerow(["Date", "Time", "Type", "Category", "Amount", "Note"])
+
+    for tx in transactions:
+        writer.writerow(
+            [
+                tx.date.strftime("%Y-%m-%d"),
+                tx.date.strftime("%H:%M:%S"),
+                tx.type.value.capitalize(),
+                tx.category,
+                float(tx.amount),
+                tx.note or "",
+            ]
+        )
+
+    output.seek(0)
+    filename = f"PaisaTrack_Report_{now.strftime('%Y%m%d')}.csv"
+
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)

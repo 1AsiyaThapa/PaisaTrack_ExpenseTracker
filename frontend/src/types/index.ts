@@ -5,6 +5,7 @@ export interface User {
   avatar?: string;
   google_id?: string;
   picture?: string;
+  role?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -123,3 +124,10 @@ export interface MultiReceiptAnalysis {
   total_on_receipt: number;
   suggested_transactions: ReceiptItem[];
 }
+
+export type ReportTimeRange =
+  | 'last_week'
+  | 'last_month'
+  | 'last_year'
+  | 'all_time'
+  | 'custom';

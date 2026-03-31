@@ -8,6 +8,7 @@ import {
   Wallet,
   CreditCard,
   PiggyBank,
+  FileDown,
   User,
   LogOut,
   Menu,
@@ -40,6 +41,12 @@ const NAV_ITEMS = [
     href: '/budget',
     icon: PiggyBank,
     color: 'text-purple-600',
+  },
+  {
+    label: 'Reports',
+    href: '/reports',
+    icon: FileDown,
+    color: 'text-amber-600',
   },
   {
     label: 'Profile',

@@ -1,4 +1,14 @@
-import { Transaction, TransactionQueryParams, User, Budget, RecurringTransaction, Category, MultiReceiptAnalysis, RecurringExpense } from '../types';
+import {
+  Transaction,
+  TransactionQueryParams,
+  User,
+  Budget,
+  RecurringTransaction,
+  Category,
+  MultiReceiptAnalysis,
+  RecurringExpense,
+  ReportTimeRange,
+} from '../types';
 import { STORAGE_KEYS } from '../utils/constants';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
@@ -68,10 +78,10 @@ async function apiRequest<T>(
 }
 
 export const authService = {
-  async login(email: string, password: string): Promise<User> {
+  async login(email: string, password: string, remember_me: boolean = false): Promise<User> {
     const response = await apiRequest<{ access_token: string; user: User }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, remember_me }),
     });
     return response.user;
   },
@@ -93,6 +103,20 @@ export const authService = {
     return apiRequest<{ message: string }>('/auth/request-otp', {
       method: 'POST',
       body: JSON.stringify({ name, email }),
+    });
+  },
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    return apiRequest<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  async resetPassword(email: string, otp_code: string, new_password: string): Promise<{ message: string }> {
+    return apiRequest<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp_code, new_password }),
     });
   },
 
@@ -262,6 +286,32 @@ export const transactionService = {
       body: JSON.stringify({ action }),
     });
   },
+
+  getExportUrl(filters: {
+    type?: 'income' | 'expense' | 'all';
+    time_range: ReportTimeRange;
+    date_from?: string;
+    date_to?: string;
+  }): string {
+    const params = new URLSearchParams({
+      time_range: filters.time_range,
+    });
+
+    if (filters.type && filters.type !== 'all') {
+      params.set('type', filters.type);
+    }
+
+    if (filters.time_range === 'custom') {
+      if (filters.date_from) {
+        params.set('date_from', filters.date_from);
+      }
+      if (filters.date_to) {
+        params.set('date_to', filters.date_to);
+      }
+    }
+
+    return `${BASE_URL}/transactions/export?${params.toString()}`;
+  },
 };
 
 export const budgetService = {
@@ -305,6 +355,32 @@ export const userService = {
       method: 'PUT',
       body: JSON.stringify(userData),
     });
+  },
+
+  async uploadProfilePicture(file: File): Promise<User> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${BASE_URL}/users/me/picture`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        }
+      } catch {
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
   },
 };
 

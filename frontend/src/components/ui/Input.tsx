@@ -44,7 +44,7 @@ export function Input({
         <input
           id={inputId}
           className={classNames(
-            'w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white',
+            'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 placeholder:text-slate-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white',
             leftIcon ? 'pl-10' : '',
             rightIcon ? 'pr-10' : '',
             error ? 'border-red-500 focus:ring-red-500' : '',

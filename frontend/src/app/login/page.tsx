@@ -15,16 +15,20 @@ import { useAuth } from '../../contexts/AuthContext';
 import { validateEmail, validatePassword } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 
-function LoginContent({ searchParams, onAuthError }: {
+function LoginContent({ searchParams, onAuthError, onStatusMessage }: {
   searchParams: URLSearchParams;
   onAuthError: (error: string | null) => void;
+  onStatusMessage: (message: string | null) => void;
 }) {
   useEffect(() => {
     const error = searchParams.get('error');
     if (error === 'auth_failed') {
       onAuthError('Authentication failed. Please try again.');
     }
-  }, [searchParams, onAuthError]);
+    if (searchParams.get('reset') === 'success') {
+      onStatusMessage('Password updated successfully. Please sign in with your new password.');
+    }
+  }, [searchParams, onAuthError, onStatusMessage]);
 
   return null; // This component only handles side effects
 }
@@ -32,6 +36,7 @@ function LoginContent({ searchParams, onAuthError }: {
 export default function Login() {
   const { login, loading } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const [formState, formActions] = useForm<{
     email: string;
@@ -53,7 +58,8 @@ export default function Login() {
     try {
       await login(
         formValues.email,
-        formValues.password
+        formValues.password,
+        formValues.rememberMe === 'true',
       );
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed. Please try again.';
@@ -73,7 +79,11 @@ export default function Login() {
       <SearchParamsWrapper>
         {(searchParams) => (
           <>
-            <LoginContent searchParams={searchParams} onAuthError={setAuthError} />
+            <LoginContent
+              searchParams={searchParams}
+              onAuthError={setAuthError}
+              onStatusMessage={setStatusMessage}
+            />
             <AuthLayout
               title="Welcome back"
               subtitle="Sign in to your account to continue"
@@ -85,6 +95,12 @@ export default function Login() {
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm">
                       <AlertCircle className="h-4 w-4" />
                       {authError}
+                    </div>
+                  )}
+
+                  {statusMessage && (
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+                      {statusMessage}
                     </div>
                   )}
 

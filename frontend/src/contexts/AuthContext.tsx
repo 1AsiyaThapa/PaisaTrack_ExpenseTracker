@@ -1,16 +1,18 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { User } from '../types';
 import { authService } from '../services/api';
 import { STORAGE_KEYS } from '../utils/constants';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   signup: (name: string, email: string, password: string, otp_code: string) => Promise<void>;
   requestOTP: (name: string, email: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<User | null>;
+  updateUserState: (nextUser: User | null) => void;
   loading: boolean;
 }
 
@@ -19,6 +21,25 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const persistUser = useCallback((nextUser: User | null) => {
+    setUser(nextUser);
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (nextUser) {
+      localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(nextUser));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+    }
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const userData = await authService.checkAuthStatus();
+    persistUser(userData);
+    return userData;
+  }, [persistUser]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -36,11 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-          const userData = await authService.checkAuthStatus();
-          if (userData) {
-            setUser(userData);
-            localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
-          }
+          await refreshUser();
         } catch (error) {
           console.error('Error checking auth status:', error);
         }
@@ -49,16 +66,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     checkAuth();
-  }, []);
+  }, [refreshUser]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe: boolean = false) => {
     setLoading(true);
     try {
-      const userData = await authService.login(email, password);
+      const userData = await authService.login(email, password, rememberMe);
 
-      setUser(userData);
+      persistUser(userData);
       if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
         window.location.href = '/dashboard';
       }
     } catch (error) {
@@ -74,9 +90,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userData = await authService.register({ name, email, password, otp_code });
 
-      setUser(userData);
+      persistUser(userData);
       if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
         window.location.href = '/dashboard';
       }
     } catch (error) {
@@ -105,15 +120,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      setUser(null);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-      }
+      persistUser(null);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, requestOTP, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, signup, requestOTP, logout, refreshUser, updateUserState: persistUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -16,18 +16,18 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'inline-flex items-center justify-center font-medium transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg';
+  const baseStyles = 'inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-sm';
 
   const sizeStyles = {
-    sm: 'px-4 py-2 text-sm',
-    md: 'px-5 py-2.5 text-base',
+    sm: 'px-3.5 py-2 text-sm',
+    md: 'px-4 py-2.5 text-sm',
     lg: 'px-6 py-3 text-base',
   };
 
   const variantStyles = {
-    primary: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 border-0',
-    outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-400',
-    ghost: 'text-gray-700 hover:bg-gray-100 focus:ring-gray-400 border-0',
+    primary: 'border border-red-600 bg-red-600 text-white hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-md focus:ring-red-200',
+    outline: 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 focus:ring-slate-200',
+    ghost: 'border border-transparent bg-transparent text-slate-700 shadow-none hover:bg-slate-100 focus:ring-slate-200',
   };
 
   const combinedClassName = `${baseStyles} ${sizeStyles[size]} ${variantStyles[variant]} ${className}`;

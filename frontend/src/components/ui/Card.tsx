@@ -13,8 +13,8 @@ export function Card({
   hover = false, 
   ...props 
 }: CardProps) {
-  const baseStyles = 'bg-white border border-gray-200 rounded-lg';
-  const hoverStyles = hover ? 'hover:shadow-md transition-shadow duration-200' : '';
+  const baseStyles = 'app-surface';
+  const hoverStyles = hover ? 'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md' : '';
   
   return (
     <div
