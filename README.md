@@ -53,7 +53,6 @@ This project was developed as a **Final Year Project (FYP)**, combining concepts
   - Expense vs Income charts  
   - Category-wise breakdown  
 - Budget alerts when spending exceeds limits  
-- Monthly and yearly financial summaries  
 
 ---
 
