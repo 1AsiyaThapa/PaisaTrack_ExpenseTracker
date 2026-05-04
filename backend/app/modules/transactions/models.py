@@ -36,12 +36,18 @@ class Transaction(Base):
     note: Mapped[str | None] = mapped_column(String(500))
     date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     receipt_url: Mapped[str | None] = mapped_column(String(512))
-    
+
     # Recurring expense fields
     frequency: Mapped[str | None] = mapped_column(
-        Enum(RecurrenceFrequency, values_callable=lambda x: [e.value for e in x], native_enum=False),
-        nullable=True
+        Enum(
+            RecurrenceFrequency,
+            values_callable=lambda x: [e.value for e in x],
+            native_enum=False,
+        ),
+        nullable=True,
     )
-    last_handled_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_handled_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     user: Mapped["User"] = relationship(back_populates="transactions")

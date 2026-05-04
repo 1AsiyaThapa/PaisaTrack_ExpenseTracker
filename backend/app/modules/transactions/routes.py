@@ -1,36 +1,43 @@
-import uuid
 import csv
 import io
+import uuid
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal, cast
 
+import numpy as np
+import pandas as pd
 from anyio.to_thread import run_sync
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from google import genai
 from google.genai import types
+from sklearn.linear_model import LinearRegression
 from sqlalchemy import CursorResult, delete, desc, extract, func, select
 
 from app.core.config import settings
 from app.core.constants import DEFAULT_CATEGORY
 from app.core.database import DBSession
 from app.core.security import CurrentUserID
-from app.modules.categories.models import Category
-from app.modules.budgets.models import Budget
 from app.modules.auth.email_service import send_budget_alert
+from app.modules.budgets.models import Budget
+from app.modules.categories.models import Category
 
-from .helpers import process_dashboard_summary, calculate_next_due_date, should_show_recurring_expense
+from .helpers import (
+    calculate_next_due_date,
+    process_dashboard_summary,
+    should_show_recurring_expense,
+)
 from .models import Transaction, TransactionType
 from .schemas import (
     IncomeExpenseComparisonResponse,
     IncomeExpenseDataPoint,
     MultiReceiptAnalysis,
+    RecurringActionRequest,
+    RecurringExpenseResponse,
     TransactionCreate,
     TransactionResponse,
-    RecurringExpenseResponse,
-    RecurringActionRequest,
 )
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
@@ -44,27 +51,25 @@ async def check_budget_notifications(
 ):
     """Background task to check budget threshold and send notifications"""
     now = datetime.now()
-    
+
     # 1. Get Budget for current month
     b_stmt = select(Budget).where(
-        Budget.user_id == user_id,
-        Budget.month == now.month,
-        Budget.year == now.year
+        Budget.user_id == user_id, Budget.month == now.month, Budget.year == now.year
     )
     budget = (await db.execute(b_stmt)).scalar_one_or_none()
-    
+
     if not budget or budget.amount <= 0 or budget.notified_80:
         return
-    
+
     # 2. Get Spent this month
     s_stmt = select(func.sum(Transaction.amount)).where(
         Transaction.user_id == user_id,
         Transaction.type == TransactionType.EXPENSE,
-        extract('month', Transaction.date) == now.month,
-        extract('year', Transaction.date) == now.year
+        extract("month", Transaction.date) == now.month,
+        extract("year", Transaction.date) == now.year,
     )
     spent = (await db.execute(s_stmt)).scalar() or 0
-    
+
     # 3. Check threshold
     if float(spent) >= (float(budget.amount) * 0.8):
         await send_budget_alert(user_email, user_name, 80)
@@ -85,24 +90,21 @@ async def create_transaction(
     db.add(transaction)
     await db.commit()
     await db.refresh(transaction)
-    
+
     # Trigger budget check in background for expense transactions
     if data.type == TransactionType.EXPENSE:
         # Get user info for notification
         from app.modules.users.models import User
+
         user_stmt = select(User).where(User.id == user_id)
         user_result = await db.execute(user_stmt)
         user = user_result.scalar_one_or_none()
-        
+
         if user:
             background_tasks.add_task(
-                check_budget_notifications,
-                user_id,
-                db,
-                user.email,
-                user.name
+                check_budget_notifications, user_id, db, user.email, user.name
             )
-    
+
     return transaction
 
 
@@ -149,9 +151,11 @@ async def get_transactions(
         )
 
     sort_column = Transaction.amount if sort_by == "amount" else Transaction.date
-    stmt = stmt.order_by(
-        sort_column.asc() if sort_order == "asc" else sort_column.desc()
-    ).limit(limit).offset(offset)
+    stmt = (
+        stmt.order_by(sort_column.asc() if sort_order == "asc" else sort_column.desc())
+        .limit(limit)
+        .offset(offset)
+    )
 
     result = await db.execute(stmt)
     return result.scalars().all()
@@ -211,7 +215,7 @@ async def export_transactions_csv(
         )
 
     output.seek(0)
-    filename = f"PaisaTrack_Report_{now.strftime('%Y%m%d')}.csv"
+    filename = f"Bachat_Report_{now.strftime('%Y%m%d')}.csv"
 
     return StreamingResponse(
         iter([output.getvalue()]),
@@ -247,24 +251,24 @@ async def get_dashboard_stats(
     days: int = Query(None, description="Filter by last N days (7, 30, or 90)"),
 ):
     now = datetime.now()
-    
+
     # Build date filter if days parameter is provided
     date_filter = []
     if days:
         start_date = now - timedelta(days=days)
         date_filter = [Transaction.date >= start_date]
-    
+
     # Total Income (filtered by days if provided)
     income_stmt = select(func.sum(Transaction.amount)).where(
         Transaction.user_id == user_id,
         Transaction.type == TransactionType.INCOME,
-        *date_filter
+        *date_filter,
     )
     # Total Expense (filtered by days if provided)
     expense_stmt = select(func.sum(Transaction.amount)).where(
         Transaction.user_id == user_id,
         Transaction.type == TransactionType.EXPENSE,
-        *date_filter
+        *date_filter,
     )
 
     total_income_res = await db.execute(income_stmt)
@@ -277,16 +281,14 @@ async def get_dashboard_stats(
     monthly_expense_stmt = select(func.sum(Transaction.amount)).where(
         Transaction.user_id == user_id,
         Transaction.type == TransactionType.EXPENSE,
-        extract('month', Transaction.date) == now.month,
-        extract('year', Transaction.date) == now.year
+        extract("month", Transaction.date) == now.month,
+        extract("year", Transaction.date) == now.year,
     )
     monthly_spent = (await db.execute(monthly_expense_stmt)).scalar() or 0
 
     # Get Current Budget
     budget_stmt = select(Budget).where(
-        Budget.user_id == user_id,
-        Budget.month == now.month,
-        Budget.year == now.year
+        Budget.user_id == user_id, Budget.month == now.month, Budget.year == now.year
     )
     budget_res = await db.execute(budget_stmt)
     budget = budget_res.scalar_one_or_none()
@@ -501,7 +503,7 @@ async def scan_receipt(
 
     prompt = f"""
     Analyze this receipt image and break it down into logical expense items based on their categories.
-    
+
     Rules:
     1. Identify items on the receipt and group them by these categories: {cat_names}.
     2. If multiple items belong to the same category (e.g., Maggi and Milk both in 'Groceries'), you can group them into one line item.
@@ -546,29 +548,28 @@ async def scan_receipt(
         )
 
 
-
 @router.get("/recurring/upcoming", response_model=list[RecurringExpenseResponse])
 async def get_upcoming_recurring_expenses(
     db: DBSession,
     user_id: CurrentUserID,
 ):
     """Get all upcoming recurring expenses that should be shown (within 3 days of due date)"""
-    
+
     # Get all transactions with frequency set (recurring expenses only)
     stmt = select(Transaction).where(
         Transaction.user_id == user_id,
         Transaction.type == TransactionType.EXPENSE,
-        Transaction.frequency.isnot(None)
+        Transaction.frequency.isnot(None),
     )
-    
+
     result = await db.execute(stmt)
     recurring_transactions = result.scalars().all()
-    
+
     upcoming = []
     for tx in recurring_transactions:
         # Calculate next due date
         next_due = calculate_next_due_date(tx.date, tx.frequency, tx.last_handled_date)
-        
+
         # Check if it should be shown (within 3 days)
         if should_show_recurring_expense(next_due):
             upcoming.append(
@@ -579,10 +580,10 @@ async def get_upcoming_recurring_expenses(
                     note=tx.note,
                     frequency=tx.frequency,
                     next_due_date=next_due,
-                    original_date=tx.date
+                    original_date=tx.date,
                 )
             )
-    
+
     return upcoming
 
 
@@ -594,28 +595,30 @@ async def handle_recurring_action(
     user_id: CurrentUserID,
 ):
     """Handle actions on recurring expenses: mark_done, skip_once, or turn_off"""
-    
+
     # Get the transaction
     stmt = select(Transaction).where(
         Transaction.id == transaction_id,
         Transaction.user_id == user_id,
-        Transaction.frequency.isnot(None)
+        Transaction.frequency.isnot(None),
     )
     result = await db.execute(stmt)
     transaction = result.scalar_one_or_none()
-    
+
     if not transaction:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Recurring transaction not found"
+            detail="Recurring transaction not found",
         )
-    
+
     action = action_data.action
-    
+
     if action == "mark_done":
         # Create a new transaction for this occurrence
-        next_due = calculate_next_due_date(transaction.date, transaction.frequency, transaction.last_handled_date)
-        
+        next_due = calculate_next_due_date(
+            transaction.date, transaction.frequency, transaction.last_handled_date
+        )
+
         new_transaction = Transaction(
             user_id=user_id,
             amount=transaction.amount,
@@ -625,32 +628,204 @@ async def handle_recurring_action(
             date=next_due,
             receipt_url=transaction.receipt_url,
             frequency=None,  # This is a completed instance, not recurring
-            last_handled_date=None
+            last_handled_date=None,
         )
         db.add(new_transaction)
-        
+
         # Update last_handled_date on the parent recurring transaction
         transaction.last_handled_date = next_due
-        
+
     elif action == "skip_once":
         # Just update last_handled_date to skip this occurrence
-        next_due = calculate_next_due_date(transaction.date, transaction.frequency, transaction.last_handled_date)
+        next_due = calculate_next_due_date(
+            transaction.date, transaction.frequency, transaction.last_handled_date
+        )
         transaction.last_handled_date = next_due
-        
+
     elif action == "turn_off":
         # Turn off recurrence by setting frequency to None
         transaction.frequency = None
         transaction.last_handled_date = None
-        
+
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid action. Must be 'mark_done', 'skip_once', or 'turn_off'"
+            detail="Invalid action. Must be 'mark_done', 'skip_once', or 'turn_off'",
         )
-    
+
     await db.commit()
-    
+
     return {
         "message": f"Action '{action}' completed successfully",
-        "transaction_id": transaction_id
+        "transaction_id": transaction_id,
+    }
+
+
+@router.get("/predict-expense")
+async def predict_next_month_expense(db: DBSession, user_id: CurrentUserID):
+    """
+    9-feature Multiple Linear Regression expense predictor.
+    Features: month_of_year, prev_1/2/3_expense, total_income, prev_1_income,
+    num_transactions, savings_rate_prev, is_festival_month.
+    All derived from the Transaction model's fields.
+    """
+    FESTIVAL_MONTHS = {10, 11}
+    FEATURE_NAMES = [
+        "month_of_year",
+        "prev_1_expense",
+        "prev_2_expense",
+        "prev_3_expense",
+        "total_income",
+        "prev_1_income",
+        "num_transactions",
+        "savings_rate_prev",
+        "is_festival_month",
+    ]
+
+    # 1. Fetch monthly expense totals + transaction counts
+    expense_stmt = (
+        select(
+            extract("year", Transaction.date).label("year"),
+            extract("month", Transaction.date).label("month"),
+            func.sum(Transaction.amount).label("total_expense"),
+            func.count().label("num_transactions"),
+        )
+        .where(Transaction.user_id == user_id, Transaction.type == TransactionType.EXPENSE)
+        .group_by(extract("year", Transaction.date), extract("month", Transaction.date))
+        .order_by(extract("year", Transaction.date), extract("month", Transaction.date))
+    )
+
+    # 2. Fetch monthly income totals
+    income_stmt = (
+        select(
+            extract("year", Transaction.date).label("year"),
+            extract("month", Transaction.date).label("month"),
+            func.sum(Transaction.amount).label("total_income"),
+        )
+        .where(Transaction.user_id == user_id, Transaction.type == TransactionType.INCOME)
+        .group_by(extract("year", Transaction.date), extract("month", Transaction.date))
+        .order_by(extract("year", Transaction.date), extract("month", Transaction.date))
+    )
+
+    expense_rows = (await db.execute(expense_stmt)).all()
+    income_rows = (await db.execute(income_stmt)).all()
+
+    if len(expense_rows) < 4:
+        return {
+            "status": "insufficient_data",
+            "message": "Need at least 4 months of expense data for a reliable prediction.",
+            "predicted_amount": 0,
+        }
+
+    # 3. Build DataFrames and merge on year/month
+    expense_df = pd.DataFrame(
+        [
+            {
+                "year": int(r.year),
+                "month": int(r.month),
+                "total_expense": float(r.total_expense),
+                "num_transactions": int(r.num_transactions),
+            }
+            for r in expense_rows
+        ]
+    )
+
+    if income_rows:
+        income_df = pd.DataFrame(
+            [
+                {"year": int(r.year), "month": int(r.month), "total_income": float(r.total_income)}
+                for r in income_rows
+            ]
+        )
+        df = expense_df.merge(income_df, on=["year", "month"], how="left")
+    else:
+        df = expense_df.copy()
+        df["total_income"] = 0.0
+
+    df["total_income"] = df["total_income"].fillna(0.0)
+
+    # 4. Feature engineering
+    df["month_of_year"] = df["month"]
+    df["prev_1_expense"] = df["total_expense"].shift(1)
+    df["prev_2_expense"] = df["total_expense"].shift(2)
+    df["prev_3_expense"] = df["total_expense"].shift(3)
+    df["prev_1_income"] = df["total_income"].shift(1)
+
+    prev_income = df["total_income"].shift(1)
+    prev_expense = df["total_expense"].shift(1)
+    df["savings_rate_prev"] = ((prev_income - prev_expense) / prev_income).fillna(0.0)
+    df["savings_rate_prev"] = df["savings_rate_prev"].replace([np.inf, -np.inf], 0.0)
+
+    df["is_festival_month"] = df["month"].apply(lambda m: 1 if m in FESTIVAL_MONTHS else 0)
+
+    # Drop rows with NaN from shifting (first 3 rows)
+    df_clean = df.dropna().reset_index(drop=True)
+
+    if len(df_clean) < 2:
+        return {
+            "status": "insufficient_data",
+            "message": "Not enough historical data after feature engineering.",
+            "predicted_amount": 0,
+        }
+
+    # 5. Train
+    X = df_clean[FEATURE_NAMES].values
+    y = df_clean["total_expense"].values
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # 6. Build prediction feature vector for next month
+    last_row = df.iloc[-1]
+    last_year = int(last_row["year"])
+    last_month = int(last_row["month"])
+    next_month = last_month + 1 if last_month < 12 else 1
+    next_year = last_year if last_month < 12 else last_year + 1
+
+    next_features = np.array(
+        [[
+            next_month,                                          # month_of_year
+            float(df.iloc[-1]["total_expense"]),                 # prev_1_expense
+            float(df.iloc[-2]["total_expense"]),                 # prev_2_expense
+            float(df.iloc[-3]["total_expense"]),                 # prev_3_expense
+            float(df.iloc[-1].get("total_income", 0)),          # total_income (use last known)
+            float(df.iloc[-1].get("total_income", 0)),          # prev_1_income
+            float(df.iloc[-1]["num_transactions"]),              # num_transactions
+            float(df_clean.iloc[-1]["savings_rate_prev"]),       # savings_rate_prev
+            1 if next_month in FESTIVAL_MONTHS else 0,           # is_festival_month
+        ]]
+    )
+
+    predicted_expense = float(max(0, model.predict(next_features)[0]))
+
+    # 7. Feature importance via standardized coefficients
+    # |coefficient * std(feature)| shows each feature's actual impact on predictions
+    feature_stds = np.std(X, axis=0)
+    raw_importance = np.abs(model.coef_) * feature_stds
+    total_importance = raw_importance.sum()
+    if total_importance > 0:
+        normalized = (raw_importance / total_importance * 100).tolist()
+    else:
+        normalized = [0.0] * len(FEATURE_NAMES)
+
+    feature_importance = [
+        {"feature": name, "importance": round(pct, 1)}
+        for name, pct in sorted(
+            zip(FEATURE_NAMES, normalized), key=lambda x: x[1], reverse=True
+        )
+    ]
+
+    month_names = [
+        "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ]
+
+    return {
+        "status": "success",
+        "predicted_amount": round(predicted_expense, 2),
+        "target_month": f"{month_names[next_month]} {next_year}",
+        "data_points_used": len(df_clean),
+        "features_used": FEATURE_NAMES,
+        "feature_importance": feature_importance,
+        "r_squared": round(float(model.score(X, y)), 4),
     }

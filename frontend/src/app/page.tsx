@@ -295,7 +295,7 @@ function CTASection() {
           Ready to start tracking?
         </h2>
         <p className="text-gray-600 mb-6">
-          Join thousands of people who are already saving more money with PaisaTrack.
+          Join thousands of people who are already saving more money with Bachat.
         </p>
         <Button onClick={() => router.push('/signup')} className="px-8 py-3">
           Get Started Free
@@ -323,7 +323,7 @@ function Footer() {
             <span className="text-lg font-semibold text-red-600">Track</span>
           </div>
           <p className="text-sm text-gray-500">
-            © 2025 PaisaTrack. All rights reserved.
+            © 2025 Bachat. All rights reserved.
           </p>
         </div>
       </div>

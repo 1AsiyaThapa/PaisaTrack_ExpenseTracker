@@ -41,10 +41,10 @@ export const BUDGET_COLORS = {
 } as const;
 
 export const STORAGE_KEYS = {
-  AUTH_TOKEN: 'paisatrack-auth-token',
-  USER_DATA: 'paisatrack-user',
-  CURRENCY: 'paisatrack-currency',
-  THEME: 'paisatrack-theme'
+  AUTH_TOKEN: 'bachat-auth-token',
+  USER_DATA: 'bachat-user',
+  CURRENCY: 'bachat-currency',
+  THEME: 'bachat-theme'
 } as const;
 
 export const VALIDATION = {

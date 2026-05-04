@@ -1,9 +1,9 @@
 [project]
-name = "paisatrack-backend"
+name = "bachat-backend"
 version = "1.0.0"
-description = "Backend API for PaisaTrack personal finance management platform"
+description = "Backend API for Bachat personal finance management platform"
 authors = [
-    {name = "PaisaTrack Team", email = "team@paisatrack.com"}
+    {name = "Bachat Team", email = "team@bachat.com"}
 ]
 dependencies = [
     "python-jose[cryptography]>=3.3.0",
@@ -17,6 +17,9 @@ dependencies = [
     "aiomysql>=0.3.2",
     "argon2-cffi>=25.1.0",
     "python-dateutil>=2.8.2",
+    "scikit-learn>=1.7.2",
+    "pandas>=2.3.3",
+    "numpy>=2.2.6",
 ]
 requires-python = ">=3.10"
 
@@ -26,4 +29,3 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
-

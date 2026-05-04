@@ -72,4 +72,6 @@ class RecurringExpenseResponse(BaseModel):
 
 
 class RecurringActionRequest(BaseModel):
-    action: str = Field(..., description="Action to perform: 'mark_done', 'skip_once', or 'turn_off'")
+    action: str = Field(
+        ..., description="Action to perform: 'mark_done', 'skip_once', or 'turn_off'"
+    )

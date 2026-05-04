@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Wallet, CreditCard, PiggyBank, TrendingDown, ArrowRight, AlertCircle } from 'lucide-react';
+import { Wallet, CreditCard, PiggyBank, TrendingDown, ArrowRight, AlertCircle, BrainCircuit } from 'lucide-react';
 import { DashboardSummaryChart } from '@/components/charts/DashboardSummaryChart';
 import { RecurringExpenseCard } from '@/components/RecurringExpenseCard';
 import Link from 'next/link';
@@ -27,6 +27,16 @@ export default function Dashboard() {
   });
   const [chartData, setChartData] = useState<Array<Record<string, string | number>>>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
+  const [prediction, setPrediction] = useState<{
+    status: string;
+    predicted_amount: number;
+    target_month?: string;
+    data_points_used?: number;
+    features_used?: string[];
+    feature_importance?: { feature: string; importance: number }[];
+    r_squared?: number;
+    message?: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Delete Confirmation State
@@ -36,6 +46,7 @@ export default function Dashboard() {
     loadStats();
     loadChartData();
     loadRecurringExpenses();
+    loadPrediction();
   }, []);
 
   const loadStats = async () => {
@@ -64,6 +75,15 @@ export default function Dashboard() {
       setRecurringExpenses(data);
     } catch (error) {
       console.error('Error loading recurring expenses:', error);
+    }
+  };
+
+  const loadPrediction = async () => {
+    try {
+      const data = await transactionService.getPrediction();
+      setPrediction(data);
+    } catch (error) {
+      console.error('Error loading prediction:', error);
     }
   };
 
@@ -328,6 +348,88 @@ export default function Dashboard() {
 
       {/* Recurring Expenses Alert */}
       <RecurringExpenseCard expenses={recurringExpenses} onUpdate={handleRecurringUpdate} />
+
+      {/* ML Expense Prediction Card */}
+      {prediction && (
+        <Card className="border-none shadow-sm bg-gradient-to-br from-indigo-50 to-white backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <BrainCircuit className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">ML Expense Prediction</h2>
+                  <p className="text-sm text-gray-500">9-feature Multiple Linear Regression</p>
+                </div>
+              </div>
+            </div>
+
+            {prediction.status === 'success' ? (
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-white/70 rounded-lg p-4">
+                    <div className="text-xs text-gray-500 mb-1">Predicted Expense</div>
+                    <div className="text-2xl font-bold text-indigo-600">
+                      ₹{prediction.predicted_amount.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="bg-white/70 rounded-lg p-4">
+                    <div className="text-xs text-gray-500 mb-1">Target Month</div>
+                    <div className="text-2xl font-bold text-gray-900">
+                      {prediction.target_month}
+                    </div>
+                  </div>
+                  <div className="bg-white/70 rounded-lg p-4">
+                    <div className="text-xs text-gray-500 mb-1">Training Data Points</div>
+                    <div className="text-2xl font-bold text-gray-900">
+                      {prediction.data_points_used}
+                    </div>
+                  </div>
+                  <div className="bg-white/70 rounded-lg p-4">
+                    <div className="text-xs text-gray-500 mb-1">Model R² Score</div>
+                    <div className="text-2xl font-bold text-gray-900">
+                      {prediction.r_squared !== undefined ? (prediction.r_squared * 100).toFixed(1) : '—'}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feature Importance */}
+                {prediction.feature_importance && prediction.feature_importance.length > 0 && (
+                  <div className="bg-white/70 rounded-lg p-4">
+                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Feature Importance</div>
+                    <div className="space-y-2">
+                      {prediction.feature_importance.map((item) => (
+                        <div key={item.feature} className="flex items-center gap-3">
+                          <span className="text-xs text-gray-600 w-36 truncate font-mono" title={item.feature}>
+                            {item.feature}
+                          </span>
+                          <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                              style={{ width: `${Math.max(item.importance, 1)}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-700 w-12 text-right">
+                            {item.importance}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                <p className="text-sm text-amber-800">
+                  {prediction.message || 'Need at least 4 months of expense data to generate a prediction.'}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Financial Summary Chart */}
       <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">

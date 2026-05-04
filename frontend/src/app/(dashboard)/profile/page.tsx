@@ -441,7 +441,7 @@ export default function ProfilePage() {
           <CardContent className="p-6 space-y-4">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Picture & access</h2>
-              <p className="text-sm text-slate-500">A few quick actions for how your account appears across PaisaTrack.</p>
+              <p className="text-sm text-slate-500">A few quick actions for how your account appears across Bachat.</p>
             </div>
 
             <div className="app-surface-muted p-4">
