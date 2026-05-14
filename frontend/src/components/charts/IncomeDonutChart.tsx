@@ -43,7 +43,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
       <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
         <p className="text-sm font-semibold text-gray-900 mb-1">{data.name}</p>
         <p className="text-sm text-gray-600">
-          ₹{Number(total).toLocaleString()} ({percentage.toFixed(1)}%)
+          Rs {Number(total).toLocaleString()} ({percentage.toFixed(1)}%)
         </p>
       </div>
     );
@@ -93,6 +93,14 @@ export function IncomeDonutChart({ data, onCategoryClick, selectedCategory }: In
 
   // Calculate total and add percentage
   const totalIncome = data.reduce((sum, item) => sum + item.total, 0);
+
+  const formatCompact = (n: number) => {
+    if (n >= 1_00_00_000) return `${(n / 1_00_00_000).toFixed(2)} Cr`;
+    if (n >= 1_00_000) return `${(n / 1_00_000).toFixed(2)} L`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return n.toLocaleString();
+  };
+
   const chartData = data.map((item, index) => ({
     ...item,
     name: item.category,
@@ -150,10 +158,14 @@ export function IncomeDonutChart({ data, onCategoryClick, selectedCategory }: In
 
       {/* Center Label */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="text-center">
-          <p className="text-sm text-gray-500 mb-1">Total Income</p>
-          <p className="text-3xl font-bold text-gray-900">
-            ₹{totalIncome.toLocaleString()}
+        <div className="text-center px-4 max-w-[140px]">
+          <p className="text-xs text-gray-500 mb-1">Total Income</p>
+          <p
+            className="font-bold text-gray-900 leading-tight break-words"
+            style={{ fontSize: 'clamp(0.875rem, 2.2vw, 1.25rem)' }}
+            title={`Rs ${totalIncome.toLocaleString()}`}
+          >
+            Rs {formatCompact(totalIncome)}
           </p>
         </div>
       </div>

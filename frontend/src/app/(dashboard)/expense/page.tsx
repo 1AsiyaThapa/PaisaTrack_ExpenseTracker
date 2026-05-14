@@ -438,8 +438,8 @@ export default function ExpensePage() {
       <Card className="mb-6">
         <CardContent>
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <Sparkles className="w-5 h-5 text-purple-600" />
+            <div className="p-2 bg-red-50 rounded-lg ring-1 ring-red-100">
+              <Sparkles className="w-5 h-5 text-red-600" />
             </div>
             Receipt Scanner
           </h2>
@@ -576,7 +576,7 @@ export default function ExpensePage() {
                       /* --- DISPLAY MODE --- */
                       <div className="p-4 flex items-center justify-between group">
                         <div className="flex items-center gap-4">
-                          <div className="p-2 bg-purple-100 rounded-lg text-purple-700 text-xs font-bold min-w-[80px] text-center">
+                          <div className="p-2 bg-red-50 rounded-lg text-red-700 text-xs font-bold min-w-[80px] text-center ring-1 ring-red-100">
                             {item.category}
                           </div>
                           <div>
@@ -691,7 +691,7 @@ export default function ExpensePage() {
                   id="isRecurring"
                   checked={formData.isRecurring}
                   onChange={(e) => setFormData({ ...formData, isRecurring: e.target.checked, frequency: undefined })}
-                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
                 />
                 <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700 cursor-pointer">
                   This is a recurring expense
@@ -713,7 +713,7 @@ export default function ExpensePage() {
                           : undefined,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                     required={formData.isRecurring}
                   >
                     <option value="">Select frequency</option>

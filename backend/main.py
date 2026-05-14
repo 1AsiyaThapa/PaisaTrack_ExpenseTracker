@@ -85,4 +85,4 @@ app.include_router(chat_router)
 
 @app.get("/")
 def root():
-    return {"message": "Bachat API is running"}
+    return {"message": "Paisatrack API is running"}

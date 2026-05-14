@@ -24,7 +24,7 @@ export function Chatbot() {
         {
             id: '1',
             role: 'assistant',
-            content: 'Hello! I am your Bachat Financial Assistant AI. I help you track expenses, analyze spending patterns, and manage your finances. Ask me anything about your expenses, income, or budget!'
+            content: 'Hello! I am your Paisatrack Financial Assistant AI. I help you track expenses, analyze spending patterns, and manage your finances. Ask me anything about your expenses, income, or budget!'
         }
     ]);
 

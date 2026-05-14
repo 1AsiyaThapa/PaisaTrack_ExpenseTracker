@@ -215,7 +215,7 @@ async def export_transactions_csv(
         )
 
     output.seek(0)
-    filename = f"Bachat_Report_{now.strftime('%Y%m%d')}.csv"
+    filename = f"Paisatrack_Report_{now.strftime('%Y%m%d')}.csv"
 
     return StreamingResponse(
         iter([output.getvalue()]),
@@ -664,10 +664,9 @@ async def handle_recurring_action(
 @router.get("/predict-expense")
 async def predict_next_month_expense(db: DBSession, user_id: CurrentUserID):
     """
-    9-feature Multiple Linear Regression expense predictor.
-    Features: month_of_year, prev_1/2/3_expense, total_income, prev_1_income,
-    num_transactions, savings_rate_prev, is_festival_month.
-    All derived from the Transaction model's fields.
+    Per-category Linear Regression expense predictor for the next calendar month.
+    For each expense category the user has transacted in, fit a small linear model
+    on monthly aggregates and predict next month's spend.
     """
     FESTIVAL_MONTHS = {10, 11}
     FEATURE_NAMES = [
@@ -675,157 +674,131 @@ async def predict_next_month_expense(db: DBSession, user_id: CurrentUserID):
         "prev_1_expense",
         "prev_2_expense",
         "prev_3_expense",
-        "total_income",
-        "prev_1_income",
         "num_transactions",
-        "savings_rate_prev",
         "is_festival_month",
     ]
+    MIN_MONTHS = 4
 
-    # 1. Fetch monthly expense totals + transaction counts
-    expense_stmt = (
+    stmt = (
         select(
             extract("year", Transaction.date).label("year"),
             extract("month", Transaction.date).label("month"),
+            Transaction.category.label("category"),
             func.sum(Transaction.amount).label("total_expense"),
             func.count().label("num_transactions"),
         )
-        .where(Transaction.user_id == user_id, Transaction.type == TransactionType.EXPENSE)
-        .group_by(extract("year", Transaction.date), extract("month", Transaction.date))
-        .order_by(extract("year", Transaction.date), extract("month", Transaction.date))
-    )
-
-    # 2. Fetch monthly income totals
-    income_stmt = (
-        select(
-            extract("year", Transaction.date).label("year"),
-            extract("month", Transaction.date).label("month"),
-            func.sum(Transaction.amount).label("total_income"),
+        .where(
+            Transaction.user_id == user_id,
+            Transaction.type == TransactionType.EXPENSE,
         )
-        .where(Transaction.user_id == user_id, Transaction.type == TransactionType.INCOME)
-        .group_by(extract("year", Transaction.date), extract("month", Transaction.date))
+        .group_by(
+            extract("year", Transaction.date),
+            extract("month", Transaction.date),
+            Transaction.category,
+        )
         .order_by(extract("year", Transaction.date), extract("month", Transaction.date))
     )
+    rows = (await db.execute(stmt)).all()
 
-    expense_rows = (await db.execute(expense_stmt)).all()
-    income_rows = (await db.execute(income_stmt)).all()
-
-    if len(expense_rows) < 4:
+    if not rows:
         return {
             "status": "insufficient_data",
-            "message": "Need at least 4 months of expense data for a reliable prediction.",
-            "predicted_amount": 0,
+            "message": "No expense transactions yet. Add some expenses to enable predictions.",
+            "categories": [],
+            "total_predicted": 0,
         }
 
-    # 3. Build DataFrames and merge on year/month
-    expense_df = pd.DataFrame(
+    full_df = pd.DataFrame(
         [
             {
                 "year": int(r.year),
                 "month": int(r.month),
+                "category": r.category,
                 "total_expense": float(r.total_expense),
                 "num_transactions": int(r.num_transactions),
             }
-            for r in expense_rows
+            for r in rows
         ]
     )
 
-    if income_rows:
-        income_df = pd.DataFrame(
-            [
-                {"year": int(r.year), "month": int(r.month), "total_income": float(r.total_income)}
-                for r in income_rows
-            ]
-        )
-        df = expense_df.merge(income_df, on=["year", "month"], how="left")
-    else:
-        df = expense_df.copy()
-        df["total_income"] = 0.0
-
-    df["total_income"] = df["total_income"].fillna(0.0)
-
-    # 4. Feature engineering
-    df["month_of_year"] = df["month"]
-    df["prev_1_expense"] = df["total_expense"].shift(1)
-    df["prev_2_expense"] = df["total_expense"].shift(2)
-    df["prev_3_expense"] = df["total_expense"].shift(3)
-    df["prev_1_income"] = df["total_income"].shift(1)
-
-    prev_income = df["total_income"].shift(1)
-    prev_expense = df["total_expense"].shift(1)
-    df["savings_rate_prev"] = ((prev_income - prev_expense) / prev_income).fillna(0.0)
-    df["savings_rate_prev"] = df["savings_rate_prev"].replace([np.inf, -np.inf], 0.0)
-
-    df["is_festival_month"] = df["month"].apply(lambda m: 1 if m in FESTIVAL_MONTHS else 0)
-
-    # Drop rows with NaN from shifting (first 3 rows)
-    df_clean = df.dropna().reset_index(drop=True)
-
-    if len(df_clean) < 2:
-        return {
-            "status": "insufficient_data",
-            "message": "Not enough historical data after feature engineering.",
-            "predicted_amount": 0,
-        }
-
-    # 5. Train
-    X = df_clean[FEATURE_NAMES].values
-    y = df_clean["total_expense"].values
-
-    model = LinearRegression()
-    model.fit(X, y)
-
-    # 6. Build prediction feature vector for next month
-    last_row = df.iloc[-1]
-    last_year = int(last_row["year"])
-    last_month = int(last_row["month"])
+    latest = full_df.sort_values(["year", "month"]).iloc[-1]
+    last_year = int(latest["year"])
+    last_month = int(latest["month"])
     next_month = last_month + 1 if last_month < 12 else 1
     next_year = last_year if last_month < 12 else last_year + 1
-
-    next_features = np.array(
-        [[
-            next_month,                                          # month_of_year
-            float(df.iloc[-1]["total_expense"]),                 # prev_1_expense
-            float(df.iloc[-2]["total_expense"]),                 # prev_2_expense
-            float(df.iloc[-3]["total_expense"]),                 # prev_3_expense
-            float(df.iloc[-1].get("total_income", 0)),          # total_income (use last known)
-            float(df.iloc[-1].get("total_income", 0)),          # prev_1_income
-            float(df.iloc[-1]["num_transactions"]),              # num_transactions
-            float(df_clean.iloc[-1]["savings_rate_prev"]),       # savings_rate_prev
-            1 if next_month in FESTIVAL_MONTHS else 0,           # is_festival_month
-        ]]
-    )
-
-    predicted_expense = float(max(0, model.predict(next_features)[0]))
-
-    # 7. Feature importance via standardized coefficients
-    # |coefficient * std(feature)| shows each feature's actual impact on predictions
-    feature_stds = np.std(X, axis=0)
-    raw_importance = np.abs(model.coef_) * feature_stds
-    total_importance = raw_importance.sum()
-    if total_importance > 0:
-        normalized = (raw_importance / total_importance * 100).tolist()
-    else:
-        normalized = [0.0] * len(FEATURE_NAMES)
-
-    feature_importance = [
-        {"feature": name, "importance": round(pct, 1)}
-        for name, pct in sorted(
-            zip(FEATURE_NAMES, normalized), key=lambda x: x[1], reverse=True
-        )
-    ]
 
     month_names = [
         "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ]
+    target_month_label = f"{month_names[next_month]} {next_year}"
+
+    category_predictions: list[dict] = []
+    insufficient_categories: list[str] = []
+
+    for cat, cat_df in full_df.groupby("category"):
+        cat_df = cat_df.sort_values(["year", "month"]).reset_index(drop=True)
+
+        if len(cat_df) < MIN_MONTHS:
+            insufficient_categories.append(str(cat))
+            continue
+
+        cat_df["month_of_year"] = cat_df["month"]
+        cat_df["prev_1_expense"] = cat_df["total_expense"].shift(1)
+        cat_df["prev_2_expense"] = cat_df["total_expense"].shift(2)
+        cat_df["prev_3_expense"] = cat_df["total_expense"].shift(3)
+        cat_df["is_festival_month"] = cat_df["month"].apply(
+            lambda m: 1 if m in FESTIVAL_MONTHS else 0
+        )
+
+        clean = cat_df.dropna().reset_index(drop=True)
+        if len(clean) < 2:
+            insufficient_categories.append(str(cat))
+            continue
+
+        X = clean[FEATURE_NAMES].values
+        y = clean["total_expense"].values
+
+        model = LinearRegression()
+        model.fit(X, y)
+
+        next_features = np.array(
+            [[
+                next_month,
+                float(cat_df.iloc[-1]["total_expense"]),
+                float(cat_df.iloc[-2]["total_expense"]),
+                float(cat_df.iloc[-3]["total_expense"]),
+                float(cat_df.iloc[-1]["num_transactions"]),
+                1 if next_month in FESTIVAL_MONTHS else 0,
+            ]]
+        )
+
+        predicted = float(max(0, model.predict(next_features)[0]))
+        category_predictions.append(
+            {"category": str(cat), "predicted_amount": round(predicted, 2)}
+        )
+
+    if not category_predictions:
+        return {
+            "status": "insufficient_data",
+            "message": (
+                f"Need at least {MIN_MONTHS} months of data per category for "
+                "reliable predictions."
+            ),
+            "categories": [],
+            "insufficient_categories": insufficient_categories,
+            "total_predicted": 0,
+        }
+
+    category_predictions.sort(key=lambda x: x["predicted_amount"], reverse=True)
+    total_predicted = round(
+        sum(c["predicted_amount"] for c in category_predictions), 2
+    )
 
     return {
         "status": "success",
-        "predicted_amount": round(predicted_expense, 2),
-        "target_month": f"{month_names[next_month]} {next_year}",
-        "data_points_used": len(df_clean),
-        "features_used": FEATURE_NAMES,
-        "feature_importance": feature_importance,
-        "r_squared": round(float(model.score(X, y)), 4),
+        "target_month": target_month_label,
+        "total_predicted": total_predicted,
+        "categories": category_predictions,
+        "insufficient_categories": insufficient_categories,
     }

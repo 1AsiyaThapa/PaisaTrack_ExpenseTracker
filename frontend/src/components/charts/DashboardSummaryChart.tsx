@@ -52,49 +52,51 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     const savings = income - totalExpenses;
 
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-lg">
-        <p className="text-sm font-semibold text-gray-900 mb-3">{label}</p>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-4 pb-2 border-b border-gray-100">
+      <div className="min-w-[240px] rounded-xl bg-white/95 backdrop-blur-md ring-1 ring-gray-900/5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)] overflow-hidden">
+        <div className="px-4 py-2.5 bg-gradient-to-r from-gray-900 to-gray-700">
+          <p className="text-xs font-semibold uppercase tracking-wider text-white/90">{label}</p>
+        </div>
+        <div className="p-4 space-y-2">
+          <div className="flex items-center justify-between gap-4 pb-2.5 border-b border-gray-100">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              <span className="text-sm text-gray-600">Income:</span>
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500 ring-2 ring-green-100"></div>
+              <span className="text-xs font-medium text-gray-500">Income</span>
             </div>
-            <span className="text-sm font-semibold text-green-600">
-              ₹{Number(income).toLocaleString()}
+            <span className="text-sm font-bold text-green-600 tabular-nums">
+              Rs {Number(income).toLocaleString()}
             </span>
           </div>
 
           {expenseCategories.length > 0 && (
             <>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 pt-1">
                 {expenseCategories.map((cat, idx) => (
                   <div key={idx} className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-3 h-3 rounded"
+                        className="w-2.5 h-2.5 rounded-sm"
                         style={{ backgroundColor: cat.color }}
                       />
-                      <span className="text-sm text-gray-600">{cat.name}:</span>
+                      <span className="text-xs text-gray-600">{cat.name}</span>
                     </div>
-                    <span className="text-sm font-medium text-gray-900">
-                      ₹{Number(cat.value).toLocaleString()}
+                    <span className="text-xs font-semibold text-gray-900 tabular-nums">
+                      Rs {Number(cat.value).toLocaleString()}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="pt-2 border-t border-gray-100 mt-2">
+              <div className="pt-2.5 mt-1 border-t border-gray-100 space-y-1">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm font-medium text-gray-700">Total Expenses:</span>
-                  <span className="text-sm font-semibold text-red-600">
-                    ₹{Number(totalExpenses).toLocaleString()}
+                  <span className="text-xs font-medium text-gray-500">Total Expenses</span>
+                  <span className="text-sm font-bold text-red-600 tabular-nums">
+                    Rs {Number(totalExpenses).toLocaleString()}
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-4 mt-1">
-                  <span className="text-sm font-medium text-gray-700">Savings:</span>
-                  <span className={`text-sm font-semibold ${savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {savings >= 0 ? '+' : ''}₹{Number(savings).toLocaleString()}
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-xs font-medium text-gray-500">Savings</span>
+                  <span className={`text-sm font-bold tabular-nums ${savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {savings >= 0 ? '+' : ''}Rs {Number(savings).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -123,20 +125,20 @@ const CustomLegend = ({ payload }: CustomLegendProps) => {
   const expenseEntries = payload.filter((entry) => entry.dataKey !== 'Income');
 
   return (
-    <div className="flex flex-wrap justify-center gap-6 mt-6">
+    <div className="flex flex-wrap justify-end items-center gap-x-4 gap-y-2 pr-2 pb-3">
       {incomeEntry && (
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 bg-green-500"></div>
-          <span className="text-sm text-gray-600 font-medium">{incomeEntry.value}</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3.5 h-0.5 bg-green-500 rounded-full"></div>
+          <span className="text-xs font-medium text-gray-700">{incomeEntry.value}</span>
         </div>
       )}
       {expenseEntries.map((entry, index) => (
-        <div key={index} className="flex items-center gap-2">
+        <div key={index} className="flex items-center gap-1.5">
           <div
-            className="w-4 h-4 rounded"
+            className="w-2.5 h-2.5 rounded-sm"
             style={{ backgroundColor: entry.color }}
           />
-          <span className="text-sm text-gray-600">{entry.value}</span>
+          <span className="text-xs text-gray-600">{entry.value}</span>
         </div>
       ))}
     </div>
@@ -207,12 +209,12 @@ export function DashboardSummaryChart({ data }: DashboardSummaryChartProps) {
           axisLine={false}
           tickLine={false}
           tickFormatter={(value) =>
-            `₹${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value.toLocaleString()}`
+            `Rs ${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value.toLocaleString()}`
           }
           width={60}
         />
-        <Tooltip content={<CustomTooltip />} />
-        <Legend content={<CustomLegend />} />
+        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.06)' }} />
+        <Legend content={<CustomLegend />} verticalAlign="top" align="right" height={36} />
 
         {/* Stacked bars for expense categories */}
         {categories.map((category) => (

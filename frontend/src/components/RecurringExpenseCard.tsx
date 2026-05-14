@@ -79,7 +79,7 @@ export function RecurringExpenseCard({ expenses, onUpdate }: RecurringExpenseCar
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold text-gray-900">{expense.category}</h3>
-                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-red-50 text-red-700 ring-1 ring-red-100 px-2 py-0.5 rounded-full">
                         {getFrequencyLabel(expense.frequency)}
                       </span>
                     </div>
@@ -99,7 +99,7 @@ export function RecurringExpenseCard({ expenses, onUpdate }: RecurringExpenseCar
                   </div>
                   <div className="text-right">
                     <div className="text-xl font-bold text-red-600 mb-3">
-                      ₹{Number(expense.amount).toLocaleString()}
+                      Rs {Number(expense.amount).toLocaleString()}
                     </div>
                     <div className="flex flex-col gap-2">
                       <Button

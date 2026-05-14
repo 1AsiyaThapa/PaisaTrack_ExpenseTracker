@@ -7,6 +7,10 @@
     color-scheme: light;
   }
 
+  html {
+    zoom: 0.8;
+  }
+
   body {
     @apply bg-slate-50 text-slate-900;
     background-image:
@@ -37,7 +41,7 @@
   }
 
   .app-surface {
-    @apply rounded-2xl border border-white/70 bg-white/80 shadow-sm backdrop-blur-sm;
+    @apply rounded-2xl border border-gray-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-gray-900/5;
   }
 
   .app-surface-muted {
@@ -47,4 +51,28 @@
   .app-chip {
     @apply inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600;
   }
+}
+
+/* Compensate for `zoom: 0.8` on <html>: viewport units (vh/vw) measure the
+   pre-zoom viewport, so 100vh visually fills only 80% of the screen.
+   125 * 0.8 = 100, restoring full-viewport sizing for screen-height utilities.
+   Placed outside @layer so it overrides Tailwind's utility layer. */
+.h-screen {
+  height: 125vh;
+}
+
+.min-h-screen {
+  min-height: 125vh;
+}
+
+.max-h-screen {
+  max-height: 125vh;
+}
+
+.h-dvh {
+  height: 125dvh;
+}
+
+.min-h-dvh {
+  min-height: 125dvh;
 }

@@ -289,12 +289,10 @@ export const transactionService = {
 
   async getPrediction(): Promise<{
     status: string;
-    predicted_amount: number;
     target_month?: string;
-    data_points_used?: number;
-    features_used?: string[];
-    feature_importance?: { feature: string; importance: number }[];
-    r_squared?: number;
+    total_predicted?: number;
+    categories?: { category: string; predicted_amount: number }[];
+    insufficient_categories?: string[];
     message?: string;
   }> {
     return apiRequest('/transactions/predict-expense');

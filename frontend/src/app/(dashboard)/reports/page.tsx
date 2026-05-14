@@ -152,7 +152,7 @@ export default function ReportsPage() {
             </div>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Transaction type</label>
               <select
@@ -183,8 +183,14 @@ export default function ReportsPage() {
                 {RANGE_OPTIONS.find((option) => option.value === timeRange)?.description}
               </p>
             </div>
+          </div>
 
-            <Button onClick={handleExport} className="h-fit self-end" disabled={exporting}>
+          <div className="flex justify-end border-t border-slate-100 pt-4">
+            <Button
+              onClick={handleExport}
+              className="w-full sm:w-auto px-5 py-2.5"
+              disabled={exporting}
+            >
               {exporting ? <LoadingSpinner size="sm" className="mr-2" /> : <Download className="h-4 w-4" />}
               {exporting ? 'Preparing export...' : 'Export CSV'}
             </Button>

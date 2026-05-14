@@ -11,7 +11,7 @@ def _send_otp_email_sync(to_email: str, otp_code: str, name: str) -> bool:
     """Send OTP email via Gmail"""
     try:
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Bachat - Email Verification Code"
+        msg["Subject"] = "Paisatrack - Email Verification Code"
         msg["From"] = settings.GMAIL_USER
         msg["To"] = to_email
 
@@ -28,7 +28,7 @@ def _send_otp_email_sync(to_email: str, otp_code: str, name: str) -> bool:
         <body>
             <div class="container">
                 <p>Hello {name},</p>
-                <p>Your verification code for Bachat is:</p>
+                <p>Your verification code for Paisatrack is:</p>
                 <div class="code">{otp_code}</div>
                 <p>This code expires in 10 minutes.</p>
                 <p>If you didn't request this, please ignore this email.</p>
@@ -58,7 +58,7 @@ def _send_budget_alert_sync(to_email: str, name: str, percentage: int) -> bool:
     """Send budget threshold alert via Gmail"""
     try:
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Bachat - Budget Alert"
+        msg["Subject"] = "Paisatrack - Budget Alert"
         msg["From"] = settings.GMAIL_USER
         msg["To"] = to_email
 
@@ -80,7 +80,7 @@ def _send_budget_alert_sync(to_email: str, name: str, percentage: int) -> bool:
                     <p>You have used <span class="percentage">{percentage}%</span> of your monthly budget.</p>
                 </div>
                 <p>Consider reviewing your expenses to stay within your budget for this month.</p>
-                <p>Log in to Bachat to see your detailed spending breakdown.</p>
+                <p>Log in to Paisatrack to see your detailed spending breakdown.</p>
             </div>
         </body>
         </html>
@@ -108,7 +108,7 @@ def _send_password_reset_email_sync(to_email: str, otp_code: str, name: str) -> 
     """Send Password Reset OTP email via Gmail"""
     try:
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Bachat - Password Reset Code"
+        msg["Subject"] = "Paisatrack - Password Reset Code"
         msg["From"] = settings.GMAIL_USER
         msg["To"] = to_email
 

@@ -44,7 +44,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
       <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
         <p className="text-sm font-semibold text-gray-900 mb-1">{data.category}</p>
         <p className="text-sm text-gray-600">
-          ₹{Number(total).toLocaleString()} ({percentage.toFixed(1)}%)
+          Rs {Number(total).toLocaleString()} ({percentage.toFixed(1)}%)
         </p>
       </div>
     );
@@ -91,7 +91,7 @@ export function ExpenseBarChart({ data }: ExpenseBarChartProps) {
           axisLine={false}
           tickLine={false}
           tickFormatter={(value) =>
-            `₹${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value.toLocaleString()}`
+            `Rs ${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value.toLocaleString()}`
           }
         />
         <YAxis

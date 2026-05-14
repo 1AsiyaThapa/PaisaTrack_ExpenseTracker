@@ -39,7 +39,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
               />
               <span className="text-sm text-gray-600">{entry.name}:</span>
               <span className={`text-sm font-semibold ${entry.dataKey === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                ₹{entry.value.toLocaleString()}
+                Rs {entry.value.toLocaleString()}
               </span>
             </div>
           ))}
@@ -105,7 +105,7 @@ export function IncomeExpenseChart({ data }: IncomeExpenseChartProps) {
           tick={{ fill: '#6b7280', fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif' }}
           axisLine={false}
           tickLine={false}
-          tickFormatter={(value) => `₹${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value.toLocaleString()}`}
+          tickFormatter={(value) => `Rs ${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value.toLocaleString()}`}
           width={60}
         />
         <Tooltip content={<CustomTooltip />} />

@@ -98,11 +98,11 @@ export default function BudgetPage() {
       </div>
 
       {/* Set Budget Card */}
-      <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
+      <Card>
         <CardContent className="p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <PiggyBank className="w-5 h-5 text-purple-600" />
+            <div className="p-2 bg-red-50 rounded-lg ring-1 ring-red-100">
+              <PiggyBank className="w-5 h-5 text-red-600" />
             </div>
             Set Monthly Budget
           </h2>
@@ -134,23 +134,23 @@ export default function BudgetPage() {
         <>
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm hover:shadow-md transition-shadow">
+            <Card hover>
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-purple-50 rounded-xl">
-                    <PiggyBank size={24} className="text-purple-600" />
+                  <div className="p-3 bg-red-50 rounded-xl ring-1 ring-red-100">
+                    <PiggyBank size={24} className="text-red-600" />
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-500">Monthly Budget</div>
                     <div className="text-2xl font-bold text-gray-900">
-                      ₹{budgetData.monthly_budget.toLocaleString()}
+                      Rs {budgetData.monthly_budget.toLocaleString()}
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm hover:shadow-md transition-shadow">
+            <Card hover>
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-red-50 rounded-xl">
@@ -159,14 +159,14 @@ export default function BudgetPage() {
                   <div>
                     <div className="text-sm font-medium text-gray-500">Spent This Month</div>
                     <div className="text-2xl font-bold text-gray-900">
-                      ₹{budgetData.monthly_spent.toLocaleString()}
+                      Rs {budgetData.monthly_spent.toLocaleString()}
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm hover:shadow-md transition-shadow">
+            <Card hover>
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-xl ${remaining >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -175,7 +175,7 @@ export default function BudgetPage() {
                   <div>
                     <div className="text-sm font-medium text-gray-500">Remaining</div>
                     <div className={`text-2xl font-bold ${remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ₹{Math.abs(remaining).toLocaleString()}
+                      Rs {Math.abs(remaining).toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -184,7 +184,7 @@ export default function BudgetPage() {
           </div>
 
           {/* Progress Card */}
-          <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
+          <Card>
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
@@ -210,7 +210,7 @@ export default function BudgetPage() {
                       <div>
                         <p className="font-semibold text-red-900">Budget Exceeded</p>
                         <p className="text-sm text-red-700 mt-1">
-                          You've exceeded your monthly budget by ₹{Math.abs(remaining).toLocaleString()}. 
+                          You've exceeded your monthly budget by Rs {Math.abs(remaining).toLocaleString()}. 
                           Consider reviewing your expenses.
                         </p>
                       </div>
@@ -222,7 +222,7 @@ export default function BudgetPage() {
                       <div>
                         <p className="font-semibold text-orange-900">Approaching Budget Limit</p>
                         <p className="text-sm text-orange-700 mt-1">
-                          You've used {percentage}% of your budget. You have ₹{remaining.toLocaleString()} remaining.
+                          You've used {percentage}% of your budget. You have Rs {remaining.toLocaleString()} remaining.
                         </p>
                       </div>
                     </div>
@@ -233,7 +233,7 @@ export default function BudgetPage() {
                       <div>
                         <p className="font-semibold text-green-900">On Track</p>
                         <p className="text-sm text-green-700 mt-1">
-                          You're doing great! You have ₹{remaining.toLocaleString()} remaining in your budget.
+                          You're doing great! You have Rs {remaining.toLocaleString()} remaining in your budget.
                         </p>
                       </div>
                     </div>
@@ -247,7 +247,7 @@ export default function BudgetPage() {
 
       {/* No Budget Set */}
       {budgetData.monthly_budget === 0 && (
-        <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
+        <Card>
           <CardContent className="p-12">
             <div className="text-center space-y-4">
               <div className="flex justify-center">

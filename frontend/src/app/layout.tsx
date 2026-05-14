@@ -9,8 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Bachat - Smart Expense Tracker",
-  description: "Take control of your finances with Bachat - the smart expense tracker that helps you budget, save, and achieve your financial goals.",
+  title: "Paisatrack - Smart Expense Tracker",
+  description: "Take control of your finances with Paisatrack - the smart expense tracker that helps you budget, save, and achieve your financial goals.",
 };
 
 export default function RootLayout({

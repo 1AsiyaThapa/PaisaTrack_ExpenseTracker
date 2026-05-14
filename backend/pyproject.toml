@@ -1,9 +1,9 @@
 [project]
-name = "bachat-backend"
+name = "paisatrack-backend"
 version = "1.0.0"
-description = "Backend API for Bachat personal finance management platform"
+description = "Backend API for Paisatrack personal finance management platform"
 authors = [
-    {name = "Bachat Team", email = "team@bachat.com"}
+    {name = "Paisatrack Team", email = "team@paisatrack.com"}
 ]
 dependencies = [
     "python-jose[cryptography]>=3.3.0",

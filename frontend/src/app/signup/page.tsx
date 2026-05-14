@@ -124,7 +124,7 @@ export default function Signup() {
             <SignupContent searchParams={searchParams} onAuthError={setAuthError} />
             <AuthLayout
               title={step === 'details' ? "Create your account" : "Verify Email"}
-              subtitle={step === 'details' ? "Join Bachat and start your journey" : `Enter the code sent to ${values.email}`}
+              subtitle={step === 'details' ? "Join Paisatrack and start your journey" : `Enter the code sent to ${values.email}`}
             >
               <Card className="backdrop-blur-sm bg-white/80 border border-gray-200 shadow-xl">
                 <div className="p-8">

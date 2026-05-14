@@ -218,7 +218,7 @@ export default function IncomePage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="font-bold text-green-600">
-                      +₹{Number(tx.amount).toLocaleString()}
+                      +Rs {Number(tx.amount).toLocaleString()}
                     </div>
                     <Button
                       variant="ghost"

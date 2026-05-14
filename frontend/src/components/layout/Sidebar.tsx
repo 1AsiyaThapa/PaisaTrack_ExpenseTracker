@@ -18,42 +18,12 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  {
-    label: 'Dashboard',
-    href: '/dashboard',
-    icon: LayoutDashboard,
-    color: 'text-blue-600',
-  },
-  {
-    label: 'Income',
-    href: '/income',
-    icon: Wallet,
-    color: 'text-green-600',
-  },
-  {
-    label: 'Expense',
-    href: '/expense',
-    icon: CreditCard,
-    color: 'text-red-600',
-  },
-  {
-    label: 'Budget',
-    href: '/budget',
-    icon: PiggyBank,
-    color: 'text-purple-600',
-  },
-  {
-    label: 'Reports',
-    href: '/reports',
-    icon: FileDown,
-    color: 'text-amber-600',
-  },
-  {
-    label: 'Profile',
-    href: '/profile',
-    icon: User,
-    color: 'text-gray-600',
-  },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Income', href: '/income', icon: Wallet },
+  { label: 'Expense', href: '/expense', icon: CreditCard },
+  { label: 'Budget', href: '/budget', icon: PiggyBank },
+  { label: 'Reports', href: '/reports', icon: FileDown },
+  { label: 'Profile', href: '/profile', icon: User },
 ];
 
 export function Sidebar() {
@@ -116,17 +86,22 @@ export function Sidebar() {
                   href={item.href}
                   onClick={() => setIsOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                    "relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
                     isActive
-                      ? "bg-gray-100 text-gray-900 shadow-sm"
+                      ? "bg-red-50 text-red-700"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   )}
                 >
+                  {isActive && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-red-600" />
+                  )}
                   <div className={cn(
                     "p-2 rounded-lg transition-colors",
-                    isActive ? "bg-white shadow-sm" : "bg-gray-50 group-hover:bg-white"
+                    isActive
+                      ? "bg-white text-red-600 shadow-sm ring-1 ring-red-100"
+                      : "bg-gray-50 text-gray-500 group-hover:bg-white group-hover:text-gray-700"
                   )}>
-                    <Icon size={20} className={item.color} />
+                    <Icon size={20} />
                   </div>
                   <span className="font-medium">{item.label}</span>
                 </Link>

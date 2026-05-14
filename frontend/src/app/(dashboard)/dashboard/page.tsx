@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { Wallet, CreditCard, PiggyBank, TrendingDown, ArrowRight, AlertCircle, BrainCircuit } from 'lucide-react';
 import { DashboardSummaryChart } from '@/components/charts/DashboardSummaryChart';
 import { RecurringExpenseCard } from '@/components/RecurringExpenseCard';
+import { CHART_COLORS } from '@/utils/constants';
 import Link from 'next/link';
 
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -29,12 +30,10 @@ export default function Dashboard() {
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [prediction, setPrediction] = useState<{
     status: string;
-    predicted_amount: number;
     target_month?: string;
-    data_points_used?: number;
-    features_used?: string[];
-    feature_importance?: { feature: string; importance: number }[];
-    r_squared?: number;
+    total_predicted?: number;
+    categories?: { category: string; predicted_amount: number }[];
+    insufficient_categories?: string[];
     message?: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,77 +122,92 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-50 rounded-xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
+        <Card hover className="h-full">
+          <CardContent className="p-6 h-full">
+            <div className="flex items-center gap-4 h-full">
+              <div className="p-3 bg-green-50 rounded-xl shrink-0">
                 <div className="w-6 h-6 text-green-600">
                   <Wallet size={24} />
                 </div>
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-500">Total Income</div>
-                <div className="text-2xl font-bold text-gray-900">
-                  ₹{stats.total_income.toLocaleString()}
-                </div>
+                <span
+                  className="block text-2xl font-bold text-gray-900 whitespace-nowrap truncate"
+                  title={`Rs ${stats.total_income.toLocaleString()}`}
+                >
+                  Rs {stats.total_income.toLocaleString()}
+                </span>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-red-50 rounded-xl">
+        <Card hover className="h-full">
+          <CardContent className="p-6 h-full">
+            <div className="flex items-center gap-4 h-full">
+              <div className="p-3 bg-red-50 rounded-xl shrink-0">
                 <div className="w-6 h-6 text-red-600">
                   <CreditCard size={24} />
                 </div>
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-500">Total Expenses</div>
-                <div className="text-2xl font-bold text-gray-900">
-                  ₹{stats.total_expenses.toLocaleString()}
-                </div>
+                <span
+                  className="block text-2xl font-bold text-gray-900 whitespace-nowrap truncate"
+                  title={`Rs ${stats.total_expenses.toLocaleString()}`}
+                >
+                  Rs {stats.total_expenses.toLocaleString()}
+                </span>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-50 rounded-xl">
-                <div className="w-6 h-6 text-blue-600">
+        <Card hover className="h-full">
+          <CardContent className="p-6 h-full">
+            <div className="flex items-center gap-4 h-full">
+              <div className="p-3 bg-gray-100 rounded-xl shrink-0">
+                <div className="w-6 h-6 text-gray-700">
                   <PiggyBank size={24} />
                 </div>
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-500">Total Balance</div>
-                <div className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                  ₹{stats.balance.toLocaleString()}
-                </div>
+                <span
+                  className={`block text-2xl font-bold whitespace-nowrap truncate ${stats.balance >= 0 ? 'text-gray-900' : 'text-red-600'}`}
+                  title={`Rs ${stats.balance.toLocaleString()}`}
+                >
+                  Rs {stats.balance.toLocaleString()}
+                </span>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Link href="/budget" className="block">
-          <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm hover:shadow-md transition-all hover:scale-[1.02] cursor-pointer">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-purple-50 rounded-xl">
-                  <div className="w-6 h-6 text-purple-600">
+        <Link href="/budget" className="block h-full">
+          <Card className="h-full hover:shadow-lg transition-all hover:-translate-y-0.5 cursor-pointer">
+            <CardContent className="p-6 h-full">
+              <div className="flex items-center gap-4 h-full">
+                <div className="p-3 bg-red-50 rounded-xl shrink-0">
+                  <div className="w-6 h-6 text-red-600">
                     <TrendingDown size={24} />
                   </div>
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-gray-500">Monthly Budget</div>
                   {stats.monthly_budget > 0 ? (
                     <>
-                      <div className="text-2xl font-bold text-gray-900">
-                        ₹{stats.monthly_spent.toLocaleString()}
-                      </div>
+                      <span
+                        className="block text-2xl font-bold text-gray-900 whitespace-nowrap truncate"
+                        title={`Rs ${stats.monthly_spent.toLocaleString()} of Rs ${stats.monthly_budget.toLocaleString()}`}
+                      >
+                        Rs {stats.monthly_spent.toLocaleString()}
+                      </span>
                       <div className="flex items-center gap-2 mt-1">
-                        <div className="text-xs text-gray-500">
-                          of ₹{stats.monthly_budget.toLocaleString()}
+                        <div
+                          className="text-xs text-gray-500 whitespace-nowrap truncate"
+                          title={`of Rs ${stats.monthly_budget.toLocaleString()}`}
+                        >
+                          of Rs {stats.monthly_budget.toLocaleString()}
                         </div>
                         <div className={`text-xs font-semibold ${
                           Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 100 ? 'text-red-600' :
@@ -205,7 +219,7 @@ export default function Dashboard() {
                       </div>
                     </>
                   ) : (
-                    <div className="text-sm text-purple-600 font-medium mt-1 flex items-center gap-1">
+                    <div className="text-sm text-red-600 font-medium mt-1 flex items-center gap-1">
                       Set budget <ArrowRight className="w-3 h-3" />
                     </div>
                   )}
@@ -218,12 +232,12 @@ export default function Dashboard() {
 
       {/* Budget Summary Card */}
       {stats.monthly_budget > 0 && (
-        <Card className="border-none shadow-sm bg-gradient-to-br from-purple-50 to-white backdrop-blur-sm">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <PiggyBank className="w-5 h-5 text-purple-600" />
+                <div className="p-2 bg-red-50 rounded-lg ring-1 ring-red-100">
+                  <PiggyBank className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Monthly Budget</h2>
@@ -231,7 +245,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <Link href="/budget">
-                <Button variant="ghost" size="sm" className="text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
                   View Details
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
@@ -244,19 +258,19 @@ export default function Dashboard() {
                 <div className="bg-white/70 rounded-lg p-4">
                   <div className="text-xs text-gray-500 mb-1">Budget</div>
                   <div className="text-xl font-bold text-gray-900">
-                    ₹{stats.monthly_budget.toLocaleString()}
+                    Rs {stats.monthly_budget.toLocaleString()}
                   </div>
                 </div>
                 <div className="bg-white/70 rounded-lg p-4">
                   <div className="text-xs text-gray-500 mb-1">Spent</div>
                   <div className="text-xl font-bold text-red-600">
-                    ₹{stats.monthly_spent.toLocaleString()}
+                    Rs {stats.monthly_spent.toLocaleString()}
                   </div>
                 </div>
                 <div className="bg-white/70 rounded-lg p-4">
                   <div className="text-xs text-gray-500 mb-1">Remaining</div>
                   <div className={`text-xl font-bold ${(stats.monthly_budget - stats.monthly_spent) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    ₹{Math.abs(stats.monthly_budget - stats.monthly_spent).toLocaleString()}
+                    Rs {Math.abs(stats.monthly_budget - stats.monthly_spent).toLocaleString()}
                   </div>
                 </div>
               </div>
@@ -303,8 +317,8 @@ export default function Dashboard() {
                       : 'text-orange-800'
                   }`}>
                     {Math.round((stats.monthly_spent / stats.monthly_budget) * 100) >= 100 
-                      ? `You've exceeded your budget by ₹${Math.abs(stats.monthly_budget - stats.monthly_spent).toLocaleString()}`
-                      : `You're approaching your budget limit. ₹${(stats.monthly_budget - stats.monthly_spent).toLocaleString()} remaining.`
+                      ? `You've exceeded your budget by Rs ${Math.abs(stats.monthly_budget - stats.monthly_spent).toLocaleString()}`
+                      : `You're approaching your budget limit. Rs ${(stats.monthly_budget - stats.monthly_spent).toLocaleString()} remaining.`
                     }
                   </p>
                 </div>
@@ -321,12 +335,12 @@ export default function Dashboard() {
 
       {/* No Budget Set */}
       {stats.monthly_budget === 0 && (
-        <Card className="border-none shadow-sm bg-gradient-to-br from-purple-50 to-white backdrop-blur-sm">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <PiggyBank className="w-8 h-8 text-purple-600" />
+                <div className="p-3 bg-red-50 rounded-lg ring-1 ring-red-100">
+                  <PiggyBank className="w-8 h-8 text-red-600" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">Set Your Monthly Budget</h3>
@@ -336,7 +350,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <Link href="/budget">
-                <Button className="bg-purple-600 hover:bg-purple-700">
+                <Button>
                   Set Budget
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
@@ -351,72 +365,68 @@ export default function Dashboard() {
 
       {/* ML Expense Prediction Card */}
       {prediction && (
-        <Card className="border-none shadow-sm bg-gradient-to-br from-indigo-50 to-white backdrop-blur-sm">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 rounded-lg">
-                  <BrainCircuit className="w-5 h-5 text-indigo-600" />
+                <div className="p-2 bg-red-50 rounded-lg ring-1 ring-red-100">
+                  <BrainCircuit className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">ML Expense Prediction</h2>
-                  <p className="text-sm text-gray-500">9-feature Multiple Linear Regression</p>
+                  <h2 className="text-lg font-bold text-gray-900">Expense Forecast</h2>
+                  <p className="text-sm text-gray-500">
+                    {prediction.target_month ? `Predicted spend for ${prediction.target_month}` : 'Predicted spend for next month'}
+                  </p>
                 </div>
               </div>
-            </div>
-
-            {prediction.status === 'success' ? (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-white/70 rounded-lg p-4">
-                    <div className="text-xs text-gray-500 mb-1">Predicted Expense</div>
-                    <div className="text-2xl font-bold text-indigo-600">
-                      ₹{prediction.predicted_amount.toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="bg-white/70 rounded-lg p-4">
-                    <div className="text-xs text-gray-500 mb-1">Target Month</div>
-                    <div className="text-2xl font-bold text-gray-900">
-                      {prediction.target_month}
-                    </div>
-                  </div>
-                  <div className="bg-white/70 rounded-lg p-4">
-                    <div className="text-xs text-gray-500 mb-1">Training Data Points</div>
-                    <div className="text-2xl font-bold text-gray-900">
-                      {prediction.data_points_used}
-                    </div>
-                  </div>
-                  <div className="bg-white/70 rounded-lg p-4">
-                    <div className="text-xs text-gray-500 mb-1">Model R² Score</div>
-                    <div className="text-2xl font-bold text-gray-900">
-                      {prediction.r_squared !== undefined ? (prediction.r_squared * 100).toFixed(1) : '—'}%
-                    </div>
+              {prediction.status === 'success' && prediction.total_predicted !== undefined && (
+                <div className="text-right">
+                  <div className="text-xs text-gray-500">Total predicted</div>
+                  <div className="text-xl font-bold text-red-600">
+                    Rs {prediction.total_predicted.toLocaleString()}
                   </div>
                 </div>
+              )}
+            </div>
 
-                {/* Feature Importance */}
-                {prediction.feature_importance && prediction.feature_importance.length > 0 && (
-                  <div className="bg-white/70 rounded-lg p-4">
-                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Feature Importance</div>
-                    <div className="space-y-2">
-                      {prediction.feature_importance.map((item) => (
-                        <div key={item.feature} className="flex items-center gap-3">
-                          <span className="text-xs text-gray-600 w-36 truncate font-mono" title={item.feature}>
-                            {item.feature}
-                          </span>
-                          <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-                              style={{ width: `${Math.max(item.importance, 1)}%` }}
+            {prediction.status === 'success' && prediction.categories && prediction.categories.length > 0 ? (
+              <div className="space-y-3">
+                {(() => {
+                  const maxAmount = Math.max(
+                    ...prediction.categories.map((c) => c.predicted_amount),
+                    1
+                  );
+                  return prediction.categories.map((item, idx) => {
+                    const pct = (item.predicted_amount / maxAmount) * 100;
+                    const color = CHART_COLORS[idx % CHART_COLORS.length];
+                    return (
+                      <div key={item.category} className="bg-white/70 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-block w-2.5 h-2.5 rounded-full"
+                              style={{ backgroundColor: color }}
                             />
+                            <span className="text-sm font-medium text-gray-800">{item.category}</span>
                           </div>
-                          <span className="text-xs font-semibold text-gray-700 w-12 text-right">
-                            {item.importance}%
+                          <span className="text-sm font-bold" style={{ color }}>
+                            Rs {item.predicted_amount.toLocaleString()}
                           </span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: color }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+                {prediction.insufficient_categories && prediction.insufficient_categories.length > 0 && (
+                  <p className="text-xs text-gray-500 pt-1">
+                    Not enough data yet for: {prediction.insufficient_categories.join(', ')}
+                  </p>
                 )}
               </div>
             ) : (
@@ -432,7 +442,7 @@ export default function Dashboard() {
       )}
 
       {/* Financial Summary Chart */}
-      <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
+      <Card >
         <CardContent className="p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-6">Financial Summary</h2>
           <p className="text-sm text-gray-500 mb-6">
@@ -444,7 +454,7 @@ export default function Dashboard() {
       </Card>
 
       {/* Recent Transactions */}
-      <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
+      <Card >
         <CardContent className="p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-6">Recent Transactions</h2>
           {stats.recent_transactions.length === 0 ? (
@@ -485,7 +495,7 @@ export default function Dashboard() {
                       className={`font-bold text-lg ${tx.type === 'income' ? 'text-green-600' : 'text-red-600'
                         }`}
                     >
-                      {tx.type === 'income' ? '+' : '-'}₹{Number(tx.amount).toLocaleString()}
+                      {tx.type === 'income' ? '+' : '-'}Rs {Number(tx.amount).toLocaleString()}
                     </div>
                     <Button
                       variant="ghost"

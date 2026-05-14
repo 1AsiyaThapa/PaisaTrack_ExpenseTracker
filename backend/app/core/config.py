@@ -6,7 +6,7 @@ load_dotenv()
 
 
 class Settings:
-    PROJECT_NAME: str = "Bachat API"
+    PROJECT_NAME: str = "Paisatrack API"
 
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
