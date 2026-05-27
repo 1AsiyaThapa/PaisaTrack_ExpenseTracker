@@ -10,6 +10,7 @@ frontend/.next/
 # --------------------------
 backend/.env
 backend/.venv/
+backend/uv.lock
 backend/__pycache__/
 backend/**/*.pyc      # remove all pyc files in subfolders
 
