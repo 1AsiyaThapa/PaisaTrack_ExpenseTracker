@@ -31,7 +31,10 @@ class Settings:
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
-        return self.DATABASE_URL.replace("pymysql", "aiomysql")
+        url = self.DATABASE_URL
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url.replace("pymysql", "aiomysql")
 
 
 settings = Settings()
