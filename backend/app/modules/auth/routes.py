@@ -96,8 +96,8 @@ async def google_callback(
             value=token_data.access_token,
             max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             httponly=True,
-            secure=False,
-            samesite="lax",
+            secure=settings.COOKIE_SECURE,
+            samesite=settings.COOKIE_SAMESITE,
         )
         return response
 
@@ -286,8 +286,8 @@ async def signup_with_email(
         value=access_token,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
     )
     return token_data
 
@@ -335,8 +335,8 @@ async def login_with_email(
         value=access_token,
         max_age=cookie_max_age,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
     )
     return token_data
 
@@ -344,7 +344,11 @@ async def login_with_email(
 @router.post("/logout")
 def logout(response: Response):
     """Logout endpoint (clear cookie)"""
-    response.delete_cookie(key="auth_token")
+    response.delete_cookie(
+        key="auth_token",
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
     return {"message": "Logged out successfully"}
 
 

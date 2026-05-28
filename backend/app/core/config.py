@@ -21,6 +21,16 @@ class Settings:
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
 
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+
+    @property
+    def COOKIE_SECURE(self) -> bool:
+        return self.ENVIRONMENT == "production"
+
+    @property
+    def COOKIE_SAMESITE(self) -> str:
+        return "none" if self.ENVIRONMENT == "production" else "lax"
+
     GMAIL_USER: str = os.getenv("GMAIL_USER", "")
     GMAIL_APP_PASSWORD: str = os.getenv("GMAIL_APP_PASSWORD", "")
 
